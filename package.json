@@ -1,0 +1,43 @@
+{
+  "name": "enclume",
+  "version": "0.0.4",
+  "private": true,
+  "scripts": {
+    "anvil": "source .env && anvil --fork-url $GOERLI_RPC_URL --chain-id $GOERLI_CHAIN_ID",
+    "deploy": "source .env && forge create contracts/src/Counter.sol:Counter --rpc-url $FORGE_RPC_URL --private-key $FORGE_PRIVATE_KEY --etherscan-api-key $ETHERSCAN_API_KEY --verify",
+    "deploy:goerli": "source .env && forge create contracts/src/Counter.sol:Counter --rpc-url $GOERLI_RPC_URL --private-key $GOERLI_PRIVATE_KEY --etherscan-api-key $ETHERSCAN_API_KEY --verify",
+    "deploy:anvil": "source .env && forge create contracts/src/Counter.sol:Counter --rpc-url $FORGE_RPC_URL --private-key $FORGE_PRIVATE_KEY --legacy",
+    "dev": "npm run wagmi && vite",
+    "dev:foundry": "npm run dev & wagmi generate --watch & npm run anvil",
+    "build": "npm run wagmi && vite build",
+    "build:production": "vite build",
+    "preview": "vite preview",
+    "lint": "prettier --write \"**/*.{ts,tsx}\"",
+    "typecheck": "tsc --noEmit",
+    "wagmi": "wagmi generate"
+  },
+  "dependencies": {
+    "@chakra-ui/react": "^2.5.4",
+    "@emotion/react": "^11.10.6",
+    "@emotion/styled": "^11.10.6",
+    "@rainbow-me/rainbowkit": "^0.11.0",
+    "@wagmi/cli": "^0.1.10",
+    "buffer": "^6.0.3",
+    "ethers": "^5.7.2",
+    "framer-motion": "^10.10.0",
+    "process": "^0.11.10",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-icons": "^4.8.0",
+    "util": "^0.12.4",
+    "wagmi": "^0.11.7"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.9",
+    "@types/react-dom": "^18.0.3",
+    "@vitejs/plugin-react": "^3.1.0",
+    "prettier": "^2.8.4",
+    "typescript": "^4.9.5",
+    "vite": "^4.1.4"
+  }
+}
