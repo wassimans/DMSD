@@ -1,8 +1,8 @@
 on: [push, pull_request]
-name: Gov of Venice tests
+name: DMSD
 jobs:
   check:
-    name: Gov of Venice
+    name: DMSD
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
