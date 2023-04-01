@@ -1,0 +1,18 @@
+on: [push, pull_request]
+name: Gov of Venice tests
+jobs:
+  check:
+    name: Gov of Venice
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1.0.9
+        with:
+          version: nightly
+
+      - name: Run Tests
+        run: forge test
