@@ -2,6 +2,6 @@
 pragma solidity ^0.8.17;
 
 import {Test} from "forge-std/Test.sol";
-import "../src/DMSD.sol";
+import "../src/MultiSigWallet.sol";
 
-contract DMSDTest is Test {}
+contract MultiSigWalletTest is Test {}
