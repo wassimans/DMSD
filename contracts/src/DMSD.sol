@@ -51,7 +51,7 @@ contract DMSD {
         _;
     }
 
-    function registerAdmin(string memory _userEmail, string memory _firstName, string memory _lastName)
+    function registerAdmin(string calldata _userEmail, string calldata _firstName, string calldata _lastName)
         external
         onlyUnregistered(msg.sender)
         returns (bool success)
@@ -70,9 +70,9 @@ contract DMSD {
 
     function registerRecipient(
         address _userAddress,
-        string memory _userEmail,
-        string memory _firstName,
-        string memory _lastName
+        string calldata _userEmail,
+        string calldata _firstName,
+        string calldata _lastName
     ) external onlyAdmin onlyUnregistered(_userAddress) returns (bool success) {
         _users[_userAddress].email = _userEmail;
         _users[_userAddress].firstName = _firstName;
@@ -106,7 +106,7 @@ contract DMSD {
         );
     }
 
-    function updateUserEmail(address _userAddress, string memory _userEmail)
+    function updateUserEmail(address _userAddress, string calldata _userEmail)
         external
         onlyAdmin
         usersNotEmpty
@@ -118,7 +118,7 @@ contract DMSD {
         return true;
     }
 
-    function updateUserFirstName(address _userAddress, string memory _firstName)
+    function updateUserFirstName(address _userAddress, string calldata _firstName)
         external
         onlyAdmin
         usersNotEmpty
@@ -130,7 +130,7 @@ contract DMSD {
         return true;
     }
 
-    function updateUserLastName(address _userAddress, string memory _lastName)
+    function updateUserLastName(address _userAddress, string calldata _lastName)
         external
         onlyAdmin
         usersNotEmpty

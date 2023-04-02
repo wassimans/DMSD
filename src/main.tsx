@@ -18,9 +18,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <ChakraProvider>
       <WagmiConfig client={client}>
         <RainbowKitProvider chains={chains}>
-          <div className="min-h-screen bg-gray-800">
-            <App />
-          </div>
+          <App />
         </RainbowKitProvider>
       </WagmiConfig>
     </ChakraProvider>
