@@ -6,12 +6,28 @@ pragma solidity ^0.8.17;
  * @dev A multisignature wallet that requires a certain number of owners to confirm transactions
  */
 contract MultiSigWallet {
+    struct Transaction {
+        address to;
+        uint256 value;
+        bytes data;
+        bool executed;
+        uint256 numConfirmations;
+    }
+
+    address[] public owners;
+    mapping(address => bool) public isOwner;
+    uint256 public numConfirmationsRequired;
+    mapping(uint256 => mapping(address => bool)) public isConfirmed;
+
+    Transaction[] public transactions;
+
     /**
      * @dev Emitted when ether is deposited into the contract.
      * @param sender The address that sent the ether.
      * @param amount The amount of ether that was sent.
      * @param balance The new balance of the contract after the deposit.
      */
+
     event Deposit(address indexed sender, uint256 amount, uint256 balance);
 
     /**
@@ -46,23 +62,6 @@ contract MultiSigWallet {
      * @param txIndex The index of the transaction in the transactions array.
      */
     event ExecuteTransaction(address indexed owner, uint256 indexed txIndex);
-
-    address[] public owners;
-    mapping(address => bool) public isOwner;
-    uint256 public numConfirmationsRequired;
-
-    struct Transaction {
-        address to;
-        uint256 value;
-        bytes data;
-        bool executed;
-        uint256 numConfirmations;
-    }
-
-    // mapping from tx index => owner => bool
-    mapping(uint256 => mapping(address => bool)) public isConfirmed;
-
-    Transaction[] public transactions;
 
     /**
      * @dev Modifier that only allows the multisig owners to call the function.
@@ -122,10 +121,6 @@ contract MultiSigWallet {
         }
 
         numConfirmationsRequired = _numConfirmationsRequired;
-    }
-
-    receive() external payable {
-        emit Deposit(msg.sender, msg.value, address(this).balance);
     }
 
     /**
@@ -234,5 +229,9 @@ contract MultiSigWallet {
         Transaction storage transaction = transactions[_txIndex];
 
         return (transaction.to, transaction.value, transaction.data, transaction.executed, transaction.numConfirmations);
+    }
+
+    receive() external payable {
+        emit Deposit(msg.sender, msg.value, address(this).balance);
     }
 }
