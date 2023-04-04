@@ -91,8 +91,7 @@ contract whenTransactionIsSubmittedTest is BaseSetup {
         uint256 txIndex = txCount - 1;
         vm.prank(alice);
         wallet.confirmTransaction(txIndex);
-        (address to, uint256 value, bytes memory data, bool executed, uint256 numConfirmations) =
-            wallet.getTransaction(txIndex);
+        (,,,, uint256 numConfirmations) = wallet.getTransaction(txIndex);
         assertEq(numConfirmations, 1, "Transaction should have 1 confirmation");
     }
 
@@ -108,8 +107,7 @@ contract whenTransactionIsSubmittedTest is BaseSetup {
         wallet.confirmTransaction(txIndex);
         vm.prank(bob);
         wallet.executeTransaction(txIndex);
-        (address to, uint256 value, bytes memory data, bool executed, uint256 numConfirmations) =
-            wallet.getTransaction(txIndex);
+        (,,, bool executed,) = wallet.getTransaction(txIndex);
         assertEq(executed, true, "Transaction should be executed");
     }
 }
@@ -144,8 +142,7 @@ contract whenEventsAreEmittedTest is BaseSetup {
         uint256 txIndex = txCount - 1;
         vm.prank(alice);
         wallet.confirmTransaction(txIndex);
-        (address to, uint256 value, bytes memory data, bool executed, uint256 numConfirmations) =
-            wallet.getTransaction(txIndex);
+        (,,,, uint256 numConfirmations) = wallet.getTransaction(txIndex);
         assertEq(numConfirmations, 1, "Transaction should have 1 confirmation");
     }
 
@@ -161,8 +158,7 @@ contract whenEventsAreEmittedTest is BaseSetup {
         wallet.confirmTransaction(txIndex);
         vm.prank(bob);
         wallet.executeTransaction(txIndex);
-        (address to, uint256 value, bytes memory data, bool executed, uint256 numConfirmations) =
-            wallet.getTransaction(txIndex);
+        (,,, bool executed,) = wallet.getTransaction(txIndex);
         assertEq(executed, true, "Transaction should be executed");
     }
 
@@ -178,8 +174,7 @@ contract whenEventsAreEmittedTest is BaseSetup {
         wallet.confirmTransaction(txIndex);
         vm.prank(bob);
         wallet.executeTransaction(txIndex);
-        (address to, uint256 value, bytes memory data, bool executed, uint256 numConfirmations) =
-            wallet.getTransaction(txIndex);
+        (,,, bool executed,) = wallet.getTransaction(txIndex);
         assertEq(executed, true, "Transaction should be executed");
     }
 }

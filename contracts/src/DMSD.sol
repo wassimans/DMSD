@@ -1,15 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "./MultiSigWallet.sol";
 
 contract DMSD {
-    // address MATIC_TOKEN_CONTRACT_ADDRESS = 0x0000000000000000000000000000000000001010;
-    ERC20 public token;
-    MultiSigWallet public personalMultiSig;
-    MultiSigWallet public recipientMultiSig;
-
     struct User {
         string email;
         string firstName;
@@ -20,11 +15,16 @@ contract DMSD {
         uint256 index;
     }
 
-    address[] private _userIndex;
-    mapping(address => User) private _users;
-    mapping(address => address[]) private _userRecipients;
-    address private _adminAddress;
-    address private _recoveryAddress;
+    MultiSigWallet public personalMultiSig; // Address of the personal multisig wallet
+    MultiSigWallet public recipientMultiSig; // Address of the recipients multisig wallet
+    IToken public token; // Address of the token contract
+    mapping(address => uint256) public approvals; // Approvals from EOAs
+
+    address[] private _userIndex; // Array of all user addresses
+    mapping(address => User) private _users; // Mapping of user addresses to user structs
+    mapping(address => address[]) private _userRecipients; // Mapping of user addresses to recipient addresses
+    address private _adminAddress; // Address of the admin
+    address private _recoveryAddress; // Address of the recovery address
 
     // We index the userAddresses so clients can quickly filter,
     // sort and find relevant information in the event logs
@@ -41,7 +41,7 @@ contract DMSD {
      * @param tokenAddress The address of the ERC20 token contract to be used.
      */
     constructor(address tokenAddress) {
-        token = ERC20(tokenAddress);
+        token = IToken(tokenAddress);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////
@@ -113,16 +113,12 @@ contract DMSD {
     }
 
     /**
-     * @dev Approves a transfer of tokens from the administrator's address to the contract address, and emits an Approval event.
-     * This function can only be called by an administrator account.
-     * @return A boolean value indicating whether the approval was successful.
-     * @notice This function may fail if the transfer of tokens from the administrator's address to the contract address fails.
-     * @notice The Approval event is emitted with the administrator's address as the `owner`, the contract address as the `spender`,
-     * and the amount of tokens transferred from the administrator's address to the contract address as the `value`.
+     * @dev Approve a transfer by the admin.
+     * @return bool indicating whether the transfer is approved.
      */
     function approveTransfer() external onlyAdmin returns (bool) {
-        require(token.transfer(address(this), _adminAddress.balance), "DMSD: Approval failed");
-        emit Approval(_adminAddress, address(this), _adminAddress.balance);
+        approvals[msg.sender] = block.timestamp;
+        emit Approval(msg.sender, address(this), msg.sender.balance);
         return true;
     }
 
@@ -151,6 +147,39 @@ contract DMSD {
             );
             emit Transfer(_adminAddress, address(recipientMultiSig), _adminAddress.balance);
         }
+        return true;
+    }
+
+    /**
+     * @dev Transfer tokens from an EOA address to a multi-sig wallet with approval.
+     *
+     * This function requires an approval from the EOA address before the transfer can be executed.
+     * The approval is valid for 30 days, after which it expires.
+     *
+     * @return bool Returns true if the transfer is successful.
+     *
+     * Requirements:
+     * - The EOA address must have a valid approval that has not expired.
+     * - The transfer to the multi-sig wallet must be successful.
+     */
+    function transferToMultisig() external returns (bool) {
+        require(approvals[msg.sender] > 0, "DMSD: Approval required");
+        require(block.timestamp - approvals[msg.sender] > 30 days, "DMSD: Approval expired");
+
+        // Transfer tokens from EOA to multi-sig wallet
+        if (_userRecipients[_adminAddress].length > 0) {
+            require(
+                IToken(token).transferFrom(msg.sender, address(personalMultiSig), msg.sender.balance),
+                "DMSD: transfer to multisig failed"
+            );
+        } else {
+            require(
+                IToken(token).transferFrom(msg.sender, address(recipientMultiSig), msg.sender.balance),
+                "DMSD: transfer to multisig failed"
+            );
+        }
+        // Reset approval
+        approvals[msg.sender] = 0;
         return true;
     }
 
@@ -355,4 +384,21 @@ contract DMSD {
         require(_recAddr != address(0), "DMSD: setting recovery address to 0");
         _recoveryAddress = _recAddr;
     }
+}
+
+/**
+ * @title IToken
+ * @dev Interface for the Token contract, extending the ERC20 interface,
+ * defining the transferFrom function for transferring tokens
+ * from one address to another with approval.
+ */
+interface IToken is IERC20 {
+    /**
+     * @dev Transfers tokens from one address to another with approval.
+     * @param from The address from which tokens are being transferred.
+     * @param to The address to which tokens are being transferred.
+     * @param amount The amount of tokens being transferred.
+     * @return A boolean indicating whether the transfer was successful or not.
+     */
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
 }
