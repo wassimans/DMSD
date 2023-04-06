@@ -282,8 +282,7 @@ contract createRecipientsMultisigTest is BaseSetup {
         dmsd.registerRecipient(charlie, recipient3.email, recipient3.firstName, recipient3.lastName);
         dmsd.createRecipientsMultisig(multisigOwners, 2);
         vm.stopPrank();
-        // The following line will work on an integration test with a --fork-url parameter
-        deal(address(DAI), testAdminAddress, 10000e18);
+        deal(address(token), testAdminAddress, 10000e18);
         console.log("Create recipients multisig test");
     }
 
