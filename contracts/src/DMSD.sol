@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import "./MultiSigWallet.sol";
 
 contract DMSD {
@@ -15,64 +15,62 @@ contract DMSD {
         uint256 index;
     }
 
-    MultiSigWallet public personalMultiSig; // Address of the personal multisig wallet
-    MultiSigWallet public recipientMultiSig; // Address of the recipients multisig wallet
-    IToken public token; // Address of the token contract
-    mapping(address => uint256) public approvals; // Approvals from EOAs
+    MultiSigWallet public personalMultiSig; // Instance of the personal multisig wallet
+    MultiSigWallet public recipientMultiSig; // Instance of of the recipients multisig wallet
+    ERC20 public token; // Instance of the token contract
 
-    address[] private _userIndex; // Array of all user addresses
-    mapping(address => User) private _users; // Mapping of user addresses to user structs
+    address[] public userIndex; // Array of all user addresses
+    mapping(address => User) public users; // Mapping of user addresses to user structs
     mapping(address => address[]) private _userRecipients; // Mapping of user addresses to recipient addresses
-    address private _adminAddress; // Address of the admin
-    address private _recoveryAddress; // Address of the recovery address
+    address public adminAddress; // Address of the admin
+    address public recoveryAddress; // Address of the recovery address
 
     // We index the userAddresses so clients can quickly filter,
     // sort and find relevant information in the event logs
     event LogNewUser(address indexed userAddress, uint256 index, string email);
-    event LogUpdateUser(address indexed userAddress, uint256 index, string email);
     event LogDeleteUser(address indexed userAddress, uint256 index, string email);
     event LogNewPersonalMultisig(address indexed recoveryAddress);
     event LogNewRecipientMultisig(address[] indexed owners, uint256 indexed numConfirmationsRequired);
     event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-
-    /**
-     * @dev Constructs a new instance of the DMSD contract with the specified ERC20 token address.
-     * @param tokenAddress The address of the ERC20 token contract to be used.
-     */
-    constructor(address tokenAddress) {
-        token = IToken(tokenAddress);
-    }
 
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////// Modifiers ///////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
 
     modifier onlyAdmin() {
-        require(_users[msg.sender].isAdmin, "DMSD: You're not the Admin.");
+        require(users[msg.sender].isAdmin, "DMSD: You're not the Admin.");
         _;
     }
 
     modifier onlyUnregistered(address _userAddress) {
-        require(!_users[_userAddress].isRegistered, "DMSD: You're already a registered user.");
-        _;
-    }
-
-    modifier onlyRegistered(address _userAddress) {
-        require(_users[_userAddress].isRegistered, "DMSD: You're not a registered user.");
+        require(!users[_userAddress].isRegistered, "DMSD: You're already a registered user.");
         _;
     }
 
     modifier usersNotEmpty() {
-        require(_userIndex.length != 0, "DMSD: User list is empty");
+        require(userIndex.length != 0, "DMSD: User list is empty");
         _;
     }
 
     // Modifier to check the existence of keys before we permit any changes,
     // and before we return an instance
+    // modifier isUser(address _userAddress) {
+    //     require(userIndex[users[_userAddress].index] == _userAddress, "DMSD: user does not exist.");
+    //     _;
+    // }
+
     modifier isUser(address _userAddress) {
-        require(_userIndex[_users[_userAddress].index] == _userAddress, "DMSD: user does not exist.");
+        require(users[_userAddress].isRegistered, "DMSD: user does not exist.");
+        require(
+            userIndex.length == users[_userAddress].index && userIndex[users[_userAddress].index - 1] == _userAddress,
+            "DMSD: user does not exist."
+        );
         _;
+    }
+
+    // constructor
+    constructor(address _tokenAddress) {
+        token = ERC20(_tokenAddress);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////
@@ -86,10 +84,10 @@ contract DMSD {
      *  @dev The event LogNewPersonalMultisig will be emitted upon successful deployment of the new multisignature wallet contract.
      */
     function createPersonalMultisig(address _recovAddr) external onlyAdmin returns (bool) {
-        setRecoveryAddress(_recovAddr);
+        _setRecoveryAddress(_recovAddr);
         address[] memory owners = new address[](2);
         owners[0] = address(msg.sender);
-        owners[1] = address(_recoveryAddress);
+        owners[1] = address(recoveryAddress);
         personalMultiSig = new MultiSigWallet(owners, 1);
         emit LogNewPersonalMultisig(_recovAddr);
         return true;
@@ -103,8 +101,9 @@ contract DMSD {
      * @dev The new multisignature wallet contract will be deployed using the provided array of owner addresses and confirmation requirements.
      * @dev The event LogNewRecipientMultisig will be emitted upon successful deployment of the new multisignature wallet contract.
      */
-    function createrecipientsMultisig(address[] memory _owners, uint256 _numConfirmationsRequired)
+    function createRecipientsMultisig(address[] memory _owners, uint256 _numConfirmationsRequired)
         external
+        onlyAdmin
         returns (bool)
     {
         recipientMultiSig = new MultiSigWallet(_owners, _numConfirmationsRequired);
@@ -113,81 +112,47 @@ contract DMSD {
     }
 
     /**
-     * @dev Approve a transfer by the admin.
-     * @return bool indicating whether the transfer is approved.
-     */
-    function approveTransfer() external onlyAdmin returns (bool) {
-        approvals[msg.sender] = block.timestamp;
-        emit Approval(msg.sender, address(this), msg.sender.balance);
-        return true;
-    }
-
-    /**
-     * @dev Transfers tokens from the admin's address to either the personal multi-sig or recipients multi-sig address,
-     * depending on whether there are any user recipients registered for the admin.
-     * Emits a Transfer event upon successful transfer.
-     *
-     * Requirements:
-     * - The admin address must have approved the smart contract to transfer tokens on its behalf.
-     * - The transfer to the multi-sig address must succeed.
-     *
+     * @notice Transfers tokens from the contract to the multisig wallet for safekeeping.
+     * @dev This function can only be called by the admin address. It calls the internal function
+     * _transferFromToMultisig to transfer tokens from the contract to the multisig wallet.
+     * @param _amount The amount of tokens to transfer.
      * @return A boolean indicating whether the transfer was successful.
      */
-    function transferToMultiSig() external returns (bool) {
-        if (_userRecipients[_adminAddress].length > 0) {
-            require(
-                token.transferFrom(_adminAddress, address(personalMultiSig), _adminAddress.balance),
-                "DMSD: transfer to multisig failed"
-            );
-            emit Transfer(_adminAddress, address(personalMultiSig), _adminAddress.balance);
-        } else {
-            require(
-                token.transferFrom(_adminAddress, address(recipientMultiSig), _adminAddress.balance),
-                "DMSD: transfer to multisig failed"
-            );
-            emit Transfer(_adminAddress, address(recipientMultiSig), _adminAddress.balance);
-        }
-        return true;
+    function transferToMultisig(uint256 _amount) external onlyAdmin returns (bool) {
+        // Transfer tokens from EOA to multi-sig wallet
+        token.approve(address(this), msg.sender.balance);
+        return _transferFromToMultisig(_amount);
     }
 
     /**
-     * @dev Transfer tokens from an EOA address to a multi-sig wallet with approval.
-     *
-     * This function requires an approval from the EOA address before the transfer can be executed.
-     * The approval is valid for 30 days, after which it expires.
-     *
-     * @return bool Returns true if the transfer is successful.
-     *
-     * Requirements:
-     * - The EOA address must have a valid approval that has not expired.
-     * - The transfer to the multi-sig wallet must be successful.
+     * @notice Transfers tokens from this contract to the multi-sig wallet.
+     * @dev If the admin has set any user-defined recipients, the tokens are transferred to the recipient multi-sig wallet,
+     * otherwise they are transferred to the personal multi-sig wallet.
+     * @param _amount The amount of tokens to transfer.
+     * @return A boolean indicating whether the transfer was successful.
+     * @dev Throws an error if the token transfer fails.
      */
-    function transferToMultisig() external returns (bool) {
-        require(approvals[msg.sender] > 0, "DMSD: Approval required");
-        require(block.timestamp - approvals[msg.sender] > 30 days, "DMSD: Approval expired");
-
+    function _transferFromToMultisig(uint256 _amount) private returns (bool) {
         // Transfer tokens from EOA to multi-sig wallet
-        if (_userRecipients[_adminAddress].length > 0) {
+        if (_userRecipients[adminAddress].length > 0) {
             require(
-                IToken(token).transferFrom(msg.sender, address(personalMultiSig), msg.sender.balance),
-                "DMSD: transfer to multisig failed"
+                token.transferFrom(msg.sender, address(recipientMultiSig), _amount),
+                "DMSD: transfer to recipient multisig failed"
             );
         } else {
             require(
-                IToken(token).transferFrom(msg.sender, address(recipientMultiSig), msg.sender.balance),
-                "DMSD: transfer to multisig failed"
+                token.transferFrom(msg.sender, address(personalMultiSig), _amount),
+                "DMSD: transfer to personal multisig failed"
             );
         }
-        // Reset approval
-        approvals[msg.sender] = 0;
         return true;
     }
 
     //////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////// Crud operations on users //////////////////////////////
+    ///////////////////////////////// User operations ////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
 
-    // This contract exposes a CRUD interface for managing DMSD's users
+    // This contract exposes a pseudo-CRUD interface for managing DMSD's users
     // gas consumption is expected to remain approximately consistent at
     // any scale because each write operation proceeds in a step-by-step
     // fashion with no branching or loops.
@@ -205,16 +170,16 @@ contract DMSD {
         onlyUnregistered(msg.sender)
         returns (bool)
     {
-        setAdminAddress(msg.sender);
-        _users[msg.sender].email = _userEmail;
-        _users[msg.sender].firstName = _firstName;
-        _users[msg.sender].lastName = _lastName;
-        _users[msg.sender].isRegistered = true;
-        _users[msg.sender].isAdmin = true;
-        _users[msg.sender].withRecipients = false;
-        _userIndex.push(msg.sender);
-        _users[msg.sender].index = _userIndex.length;
-        emit LogNewUser(msg.sender, _userIndex.length, _userEmail);
+        _setAdminAddress(msg.sender);
+        users[msg.sender].email = _userEmail;
+        users[msg.sender].firstName = _firstName;
+        users[msg.sender].lastName = _lastName;
+        users[msg.sender].isRegistered = true;
+        users[msg.sender].isAdmin = true;
+        users[msg.sender].withRecipients = false;
+        userIndex.push(msg.sender);
+        users[msg.sender].index = userIndex.length;
+        emit LogNewUser(msg.sender, userIndex.length, _userEmail);
         return true;
     }
 
@@ -233,24 +198,25 @@ contract DMSD {
         string calldata _firstName,
         string calldata _lastName
     ) external onlyAdmin onlyUnregistered(_userAddress) returns (bool) {
-        _users[_userAddress].email = _userEmail;
-        _users[_userAddress].firstName = _firstName;
-        _users[_userAddress].lastName = _lastName;
-        _users[_userAddress].isRegistered = true;
-        _users[_userAddress].isAdmin = false;
-        _userIndex.push(msg.sender);
-        _users[_userAddress].index = _userIndex.length;
+        users[_userAddress].email = _userEmail;
+        users[_userAddress].firstName = _firstName;
+        users[_userAddress].lastName = _lastName;
+        users[_userAddress].isRegistered = true;
+        users[_userAddress].isAdmin = false;
+        users[msg.sender].withRecipients = false;
+        userIndex.push(_userAddress);
+        users[_userAddress].index = userIndex.length;
         _userRecipients[msg.sender].push(_userAddress);
-        emit LogNewUser(_userAddress, _userIndex.length, _userEmail);
+        emit LogNewUser(_userAddress, userIndex.length, _userEmail);
         return true;
     }
 
-    /// @notice Gets the address of the user at the given index in the `_userIndex` array.
+    /// @notice Gets the address of the user at the given index in the `userIndex` array.
     /// @dev This function can be used to retrieve the addresses of all registered users.
-    /// @param index The index of the user in the `_userIndex` array.
+    /// @param index The index of the user in the `userIndex` array.
     /// @return userAddress The address of the user at the given index.
     function getUserAtIndex(uint256 index) external view returns (address userAddress) {
-        return _userIndex[index];
+        return userIndex[index];
     }
 
     /**
@@ -270,135 +236,39 @@ contract DMSD {
         view
         usersNotEmpty
         isUser(_userAddress)
-        onlyRegistered(_userAddress)
-        returns (string memory userEmail, string memory firstName, string memory lastName, bool isAdmin)
+        returns (
+            string memory userEmail,
+            string memory firstName,
+            string memory lastName,
+            bool isAdmin,
+            bool isRegistered,
+            bool withRecipients
+        )
     {
         return (
-            _users[_userAddress].email,
-            _users[_userAddress].firstName,
-            _users[_userAddress].lastName,
-            _users[_userAddress].isAdmin
+            users[_userAddress].email,
+            users[_userAddress].firstName,
+            users[_userAddress].lastName,
+            users[_userAddress].isAdmin,
+            users[_userAddress].isRegistered,
+            users[_userAddress].withRecipients
         );
-    }
-
-    /**
-     * @dev Updates the email address of a registered user.
-     * @param _userAddress The Ethereum address of the user.
-     * @param _userEmail The new email address of the user.
-     * @return A boolean value indicating whether the email address was updated successfully.
-     * Emits a LogUpdateUser event on success.
-     * Requirements:
-     * - Only the contract admin can call this function.
-     * - The user list must not be empty.
-     * - The user must be registered.
-     */
-    function updateUserEmail(address _userAddress, string calldata _userEmail)
-        external
-        onlyAdmin
-        usersNotEmpty
-        isUser(_userAddress)
-        returns (bool)
-    {
-        _users[_userAddress].email = _userEmail;
-        emit LogUpdateUser(_userAddress, _users[_userAddress].index, _userEmail);
-        return true;
-    }
-
-    /**
-     * @dev Update the first name of a registered user.
-     * @param _userAddress The address of the user to update.
-     * @param _firstName The new first name for the user.
-     * @return A boolean indicating whether the operation was successful.
-     *
-     * Emits a {LogUpdateUser} event.
-     * Requirements:
-     * - The function can only be called by an admin.
-     * - The list of users cannot be empty.
-     * - The user must be registered.
-     */
-    function updateUserFirstName(address _userAddress, string calldata _firstName)
-        external
-        onlyAdmin
-        usersNotEmpty
-        isUser(_userAddress)
-        returns (bool)
-    {
-        _users[_userAddress].firstName = _firstName;
-        emit LogUpdateUser(_userAddress, _users[_userAddress].index, _users[_userAddress].email);
-        return true;
-    }
-
-    /**
-     * @dev Updates the last name of a user.
-     * @param _userAddress The address of the user to update.
-     * @param _lastName The new last name to set for the user.
-     * @return A boolean indicating whether the update was successful.
-     */
-    function updateUserLastName(address _userAddress, string calldata _lastName)
-        external
-        onlyAdmin
-        usersNotEmpty
-        isUser(_userAddress)
-        returns (bool)
-    {
-        _users[_userAddress].lastName = _lastName;
-        emit LogUpdateUser(_userAddress, _users[_userAddress].index, _users[_userAddress].email);
-        return true;
-    }
-
-    /**
-     * @dev Deletes logically a recipient from the list of registered users. Only the admin can perform this action.
-     * @param _userAddress The address of the recipient to be deleted.
-     * @return A boolean indicating whether the operation was successful.
-     */
-    function deleteRecipient(address _userAddress)
-        external
-        onlyAdmin
-        usersNotEmpty
-        isUser(_userAddress)
-        returns (bool)
-    {
-        uint256 indexToDelete = _users[_userAddress].index;
-        address indexToMove = _userIndex[_userIndex.length - 1];
-        string memory userEmail = _users[_userAddress].email;
-        _userIndex[indexToDelete] = indexToMove;
-        _users[indexToMove].index = indexToDelete;
-        _userIndex.pop();
-        emit LogDeleteUser(_userAddress, indexToDelete, userEmail);
-        return true;
     }
 
     //////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////// Getters and setters ////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
 
-    function setAdminAddress(address _addr) internal onlyAdmin {
-        _adminAddress = _addr;
+    function _setAdminAddress(address _addr) private {
+        adminAddress = _addr;
     }
 
     function getRecoveryAddress() external view onlyAdmin returns (address) {
-        return _recoveryAddress;
+        return recoveryAddress;
     }
 
-    function setRecoveryAddress(address _recAddr) internal onlyAdmin {
+    function _setRecoveryAddress(address _recAddr) private {
         require(_recAddr != address(0), "DMSD: setting recovery address to 0");
-        _recoveryAddress = _recAddr;
+        recoveryAddress = _recAddr;
     }
-}
-
-/**
- * @title IToken
- * @dev Interface for the Token contract, extending the ERC20 interface,
- * defining the transferFrom function for transferring tokens
- * from one address to another with approval.
- */
-interface IToken is IERC20 {
-    /**
-     * @dev Transfers tokens from one address to another with approval.
-     * @param from The address from which tokens are being transferred.
-     * @param to The address to which tokens are being transferred.
-     * @param amount The amount of tokens being transferred.
-     * @return A boolean indicating whether the transfer was successful or not.
-     */
-    function transferFrom(address from, address to, uint256 amount) external returns (bool);
 }

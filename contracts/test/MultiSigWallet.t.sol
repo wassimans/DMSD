@@ -41,6 +41,7 @@ abstract contract BaseSetup is Test {
     }
 }
 
+// a test contract that inherits from BaseSetup and which tests the constructor
 contract whenEtherIsDepositedTest is BaseSetup {
     function setUp() public virtual override {
         BaseSetup.setUp();
@@ -60,7 +61,7 @@ contract whenEtherIsDepositedTest is BaseSetup {
     }
 }
 
-// a contract that inherits from whenEtherIsDepositedTest and which tests submitTransaction
+// a test contract that inherits from whenEtherIsDepositedTest and which tests submitTransaction
 contract whenTransactionIsSubmittedTest is BaseSetup {
     function setUp() public virtual override {
         BaseSetup.setUp();
@@ -112,7 +113,7 @@ contract whenTransactionIsSubmittedTest is BaseSetup {
     }
 }
 
-// a contract that inherits from BaseSetup and which tests MultiSigWallet events
+// a test contract that inherits from BaseSetup and which tests MultiSigWallet events
 contract whenEventsAreEmittedTest is BaseSetup {
     function setUp() public virtual override {
         BaseSetup.setUp();
@@ -179,7 +180,7 @@ contract whenEventsAreEmittedTest is BaseSetup {
     }
 }
 
-// a contract that inherits from BaseSetup and which tests MultiSigWallet modifiers
+// a test contract that inherits from BaseSetup and which tests MultiSigWallet modifiers
 contract whenModifiersAreUsedTest is BaseSetup {
     function setUp() public virtual override {
         BaseSetup.setUp();
@@ -234,7 +235,7 @@ contract whenModifiersAreUsedTest is BaseSetup {
     }
 }
 
-// a contract that inherits from BaseSetup and which tests MultiSigWallet getters
+// a test contract that inherits from BaseSetup and which tests MultiSigWallet getters
 contract whenGettersAreUsedTest is BaseSetup {
     function setUp() public virtual override {
         BaseSetup.setUp();
