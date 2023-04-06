@@ -28,3 +28,5 @@ jobs:
         env:
           FOUNDRY_PROFILE: integration
           FORK_URL: ${{ secrets.FORK_URL }}
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
