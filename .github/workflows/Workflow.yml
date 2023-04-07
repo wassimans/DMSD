@@ -38,4 +38,4 @@ jobs:
         uses: codecov/codecov-action@v3
 
       - name: Deploy to Goerli testnet
-        run: forge script ./script/DMSD.s.sol:DMSDScript --rpc-url ${{ secrets.FORK_URL }} --private-key ${{ secrets.GOERLI_PRIVATE_KEY }} --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }} --broadcast -vvvv
+        run: forge script src/DMSD.s.sol:DMSDScript --rpc-url ${{ secrets.FORK_URL }} --private-key ${{ secrets.GOERLI_PRIVATE_KEY }} --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }} --broadcast -vvvv
