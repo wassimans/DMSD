@@ -1,4 +1,4 @@
-name: Deploy Smart Contract
+name: Integration Tests and deployments
 
 on:
   push:
@@ -17,6 +17,12 @@ jobs:
         with:
           version: nightly
 
+      - name: Check formatting
+        run: forge fmt --check
+
+      - name: Check gas snapshots
+        run: forge snapshot --check --fork-url ${{ secrets.FORK_URL }}
+
       - name: Install dependencies
         run: forge install
 
@@ -27,5 +33,9 @@ jobs:
         run: forge test --fork-url ${{ secrets.FORK_URL }}
         env:
           FOUNDRY_PROFILE: integration
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+
       - name: Deploy to Goerli testnet
         run: forge script contracts/script/DMSD.s.sol:DMSDScript --rpc-url ${{ secrets.FORK_URL }} --private-key ${{ secrets.GOERLI_PRIVATE_KEY }} --etherscan-api-key ${{ secrets.ETHERSCAN_API_KEY }} --broadcast --verify -vvvv
