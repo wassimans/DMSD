@@ -28,4 +28,4 @@ jobs:
         env:
           FOUNDRY_PROFILE: integration
       - name: Deploy to Goerli testnet
-        run: source .env && forge script script/DMSD.s.sol:DMSDScript --rpc-url ${{ secrets.FORK_URL }} --broadcast --verify -vvvv
+        run: source .env && forge script script/DMSD.s.sol:DMSDScript --rpc-url ${{ secrets.FORK_URL }} --private-key $GOERLI_PRIVATE_KEY --etherscan-api-key $ETHERSCAN_API_KEY --broadcast --verify -vvvv
