@@ -37,5 +37,5 @@ jobs:
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3
 
-      - name: Deploy to Goerli testnet
+      - name: Deploy to Mumbai testnet
         run: forge script contracts/script/DMSD.s.sol:DMSDScript --rpc-url ${{ secrets.FORK_URL }} --private-key ${{ secrets.GOERLI_PRIVATE_KEY }} --broadcast -vvvv
