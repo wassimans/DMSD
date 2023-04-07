@@ -1,12 +1,12 @@
 {
-  "name": "enclume",
-  "version": "0.0.4",
+  "name": "DMSD",
+  "version": "0.0.1",
   "private": true,
   "scripts": {
     "anvil": "source .env && anvil --fork-url $GOERLI_RPC_URL --chain-id $GOERLI_CHAIN_ID",
-    "deploy": "source .env && forge create contracts/src/Counter.sol:Counter --rpc-url $FORGE_RPC_URL --private-key $FORGE_PRIVATE_KEY --etherscan-api-key $ETHERSCAN_API_KEY --verify",
-    "deploy:goerli": "source .env && forge create contracts/src/Counter.sol:Counter --rpc-url $GOERLI_RPC_URL --private-key $GOERLI_PRIVATE_KEY --etherscan-api-key $ETHERSCAN_API_KEY --verify",
-    "deploy:anvil": "source .env && forge create contracts/src/Counter.sol:Counter --rpc-url $FORGE_RPC_URL --private-key $FORGE_PRIVATE_KEY --legacy",
+    "deploy": "source .env && forge create contracts/src/DMSD.sol:DMSD --rpc-url $FORGE_RPC_URL --private-key $FORGE_PRIVATE_KEY --etherscan-api-key $ETHERSCAN_API_KEY --verify",
+    "deploy:goerli": "source .env && forge create contracts/src/DMSD.sol:DMSD --rpc-url $GOERLI_RPC_URL --private-key $GOERLI_PRIVATE_KEY --etherscan-api-key $ETHERSCAN_API_KEY --verify",
+    "deploy:anvil": "source .env && forge create contracts/src/DMSD.sol:DMSD --rpc-url $FORGE_RPC_URL --private-key $FORGE_PRIVATE_KEY --legacy",
     "dev": "npm run wagmi && vite",
     "dev:foundry": "npm run dev & wagmi generate --watch & npm run anvil",
     "build:wagmi:vite": "npm run wagmi && vite build",

@@ -68,11 +68,6 @@ contract DMSD {
         _;
     }
 
-    // constructor
-    constructor(address _tokenAddress) {
-        dToken = ERC20(_tokenAddress);
-    }
-
     //////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////// Business logic //////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
@@ -270,5 +265,9 @@ contract DMSD {
     function _setRecoveryAddress(address _recAddr) private {
         require(_recAddr != address(0), "DMSD: setting recovery address to 0");
         recoveryAddress = _recAddr;
+    }
+
+    function setToken(address _dToken) public {
+        dToken = ERC20(_dToken);
     }
 }

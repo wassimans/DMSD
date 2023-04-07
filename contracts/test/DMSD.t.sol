@@ -2,12 +2,28 @@
 pragma solidity ^0.8.17;
 
 import {console} from "forge-std/console.sol";
-import {stdStorage, StdStorage, Test} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import "../utils/Utils.sol";
 import "../src/MultiSigWallet.sol";
 import "../src/DMSD.sol";
 
-abstract contract BaseSetup is DMSD, Test {
+abstract contract BaseSetup is Test {
+    struct User {
+        string email;
+        string firstName;
+        string lastName;
+        bool isRegistered;
+        bool isAdmin;
+        bool withRecipients;
+        uint256 index;
+    }
+
+    event LogNewUser(address indexed userAddress, uint256 index, string email);
+    event LogDeleteUser(address indexed userAddress, uint256 index, string email);
+    event LogNewPersonalMultisig(address indexed recoveryAddress);
+    event LogNewRecipientMultisig(address[] indexed owners, uint256 indexed numConfirmationsRequired);
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
     // DAI token address in GOERLI testnet
     address public constant DAI = 0x73967c6a0904aA032C103b4104747E88c566B1A2;
     MultiSigWallet internal wallet;
@@ -25,15 +41,6 @@ abstract contract BaseSetup is DMSD, Test {
     address internal charlie;
     address internal sybil;
     address[] internal multisigOwners;
-
-    // constructor
-    constructor() DMSD(DAI) {
-        console.log("Base setup constructor");
-    }
-
-    // function writeTokenBalance(address who, uint256 amt) internal {
-    //     stdstore.target(address(this)).sig(IERC20(DAI).balanceOf.selector).with_key(who).checked_write(amt);
-    // }
 
     function setUp() public virtual {
         utils = new Utils();
@@ -81,7 +88,6 @@ abstract contract BaseSetup is DMSD, Test {
 
         testAdminAddress = testUsers[0];
         vm.label(testAdminAddress, "Admin");
-        // writeTokenBalance(address(this), address(DAI), 1_000_000_000 * 1e18);
         adminRecoveryAddress = testUsers[1];
         vm.label(adminRecoveryAddress, "RecoveryAddress");
 
@@ -107,10 +113,11 @@ abstract contract BaseSetup is DMSD, Test {
 
 // a test contract that inherits from BaseSetup and which tests the constructor
 contract whenContractIsCreatedTest is BaseSetup {
-    DMSD dmsd = new DMSD(DAI);
+    DMSD dmsd = new DMSD();
 
     function setUp() public virtual override {
         BaseSetup.setUp();
+        dmsd.setToken(DAI);
         console.log("When contract is created test");
     }
 
@@ -126,11 +133,12 @@ contract whenContractIsCreatedTest is BaseSetup {
 
 // a test contract that inherits from BaseSetup and which tests registerAdmin
 contract registerAdminTest is BaseSetup {
-    DMSD dmsd = new DMSD(DAI);
+    DMSD dmsd = new DMSD();
     bool adminCreated;
 
     function setUp() public virtual override {
         BaseSetup.setUp();
+        dmsd.setToken(DAI);
         console.log("Register admin test");
     }
 
@@ -181,12 +189,13 @@ contract registerAdminTest is BaseSetup {
 
 // a test contract that inherits from BaseSetup and which tests registerRecipient
 contract registerRecipientTest is BaseSetup {
-    DMSD dmsd = new DMSD(DAI);
+    DMSD dmsd = new DMSD();
 
     bool recipientCreated;
 
     function setUp() public virtual override {
         BaseSetup.setUp();
+        dmsd.setToken(DAI);
         vm.prank(testAdminAddress);
         dmsd.registerAdmin(admin.email, admin.firstName, admin.lastName);
         vm.prank(testAdminAddress);
@@ -229,10 +238,11 @@ contract registerRecipientTest is BaseSetup {
 
 // a test contract that inherits from BaseSetup and which tests createPersonalMultisig
 contract createPersonalMultisigTest is BaseSetup {
-    DMSD dmsd = new DMSD(DAI);
+    DMSD dmsd = new DMSD();
 
     function setUp() public virtual override {
         BaseSetup.setUp();
+        dmsd.setToken(DAI);
         vm.prank(testAdminAddress);
         dmsd.registerAdmin(admin.email, admin.firstName, admin.lastName);
         console.log("Create personal multisig test");
@@ -275,10 +285,11 @@ contract createPersonalMultisigTest is BaseSetup {
 
 // a test contract that inherits from BaseSetup and which tests createrecipientsMultisig
 contract createRecipientsMultisigTest is BaseSetup {
-    DMSD dmsd = new DMSD(DAI);
+    DMSD dmsd = new DMSD();
 
     function setUp() public virtual override {
         BaseSetup.setUp();
+        dmsd.setToken(DAI);
         vm.startPrank(testAdminAddress);
         dmsd.registerAdmin(admin.email, admin.firstName, admin.lastName);
         dmsd.registerRecipient(alice, recipient1.email, recipient1.firstName, recipient1.lastName);
@@ -286,7 +297,7 @@ contract createRecipientsMultisigTest is BaseSetup {
         dmsd.registerRecipient(charlie, recipient3.email, recipient3.firstName, recipient3.lastName);
         dmsd.createRecipientsMultisig(multisigOwners, 2);
         vm.stopPrank();
-        deal(address(dToken), testAdminAddress, 100e18);
+        deal(address(dmsd.dToken()), testAdminAddress, 100e18);
         console.log("Create recipients multisig test");
     }
 
@@ -311,20 +322,15 @@ contract createRecipientsMultisigTest is BaseSetup {
     function testApproveTransfer() public {
         console.log("Test approve transfer");
         vm.startPrank(testAdminAddress);
-        assertTrue(dToken.approve(address(dmsd), testAdminAddress.balance));
+        assertTrue(dmsd.dToken().approve(address(dmsd), testAdminAddress.balance));
         vm.stopPrank();
     }
 
     // function that tests transferToMultisig
     function testTransferToMultisig() public {
         console.log("Test transfer to multisig");
-        // uint256 slot = stdstore.target(address(this)).sig(token.balanceOf.selector).with_key(testAdminAddress).find();
-        // bytes32 data = vm.load(address(this), bytes32(slot));
-        // stdstore.target(address(this)).sig(dmsd.token.balanceOf.selector).with_key(testAdminAddress).checked_write(
-        //     1_000_000_000 * 1e18
-        // );
         vm.startPrank(testAdminAddress);
-        dToken.approve(address(dmsd), testAdminAddress.balance);
+        dmsd.dToken().approve(address(dmsd), testAdminAddress.balance);
         assertTrue(dmsd.transferToMultisig(10));
         vm.stopPrank();
     }
@@ -332,10 +338,11 @@ contract createRecipientsMultisigTest is BaseSetup {
 
 // a test contract that inherits from BaseSetup and which tests getUserAtIndex, getUser, deleteRecipient
 contract getUserAtIndexTest is BaseSetup {
-    DMSD dmsd = new DMSD(DAI);
+    DMSD dmsd = new DMSD();
 
     function setUp() public virtual override {
         BaseSetup.setUp();
+        dmsd.setToken(DAI);
         vm.prank(testAdminAddress);
         dmsd.registerAdmin(admin.email, admin.firstName, admin.lastName);
         vm.startPrank(testAdminAddress);
@@ -380,10 +387,11 @@ contract getUserAtIndexTest is BaseSetup {
 
 // a test contract that inherits from BaseSetup and which tests all DMSD modifiers
 contract DMSDModifiersTest is BaseSetup {
-    DMSD dmsd = new DMSD(DAI);
+    DMSD dmsd = new DMSD();
 
     function setUp() public virtual override {
         BaseSetup.setUp();
+        dmsd.setToken(DAI);
         console.log("DMSD modifiers tests");
     }
 

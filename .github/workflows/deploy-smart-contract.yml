@@ -1,0 +1,31 @@
+name: Deploy Smart Contract
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install dependencies
+        run: forge install
+
+      - name: Check contract sizes
+        run: forge build --sizes
+
+      - name: Run tests
+        run: forge test --fork-url ${{ secrets.FORK_URL }}
+        env:
+          FOUNDRY_PROFILE: integration
+      - name: Deploy to Goerli testnet
+        run: source .env && forge script script/DMSD.s.sol:DMSDScript --rpc-url ${{ secrets.FORK_URL }} --broadcast --verify -vvvv
