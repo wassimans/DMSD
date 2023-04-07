@@ -25,7 +25,7 @@ abstract contract BaseSetup is Test {
     event Transfer(address indexed from, address indexed to, uint256 value);
 
     // DAI token address in GOERLI testnet
-    address public constant DAI = 0x73967c6a0904aA032C103b4104747E88c566B1A2;
+    address public constant DAI = 0x001B3B4d0F3714Ca98ba10F6042DaEbF0B1B7b6F;
     MultiSigWallet internal wallet;
     Utils internal utils;
 

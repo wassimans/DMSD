@@ -5,8 +5,8 @@ import "forge-std/Script.sol";
 import "../src/DMSD.sol";
 
 contract DMSDScript is Script {
-    // DAI token address in GOERLI testnet
-    address public constant DAI = 0x73967c6a0904aA032C103b4104747E88c566B1A2;
+    // DAI token address in MUMBAI testnet
+    address public constant DAI = 0x001B3B4d0F3714Ca98ba10F6042DaEbF0B1B7b6F;
 
     /// @notice The main script entrypoint
     function run() external {
