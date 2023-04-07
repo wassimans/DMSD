@@ -10,8 +10,9 @@ contract DMSDScript is Script {
 
     /// @notice The main script entrypoint
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("GOERLI_PRIVATE_KEY");
-        vm.startBroadcast(deployerPrivateKey);
+        // uint256 deployerPrivateKey = vm.envUint("GOERLI_PRIVATE_KEY");
+        // vm.startBroadcast(deployerPrivateKey);
+        vm.startBroadcast();
         // Create a new DMSD contract
         DMSD dmsd = new DMSD();
         // Set the dToken address to DAI on Goerli testnet
