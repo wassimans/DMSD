@@ -2,8 +2,7 @@
 pragma solidity ^0.8.17;
 
 import {console} from "forge-std/console.sol";
-import {Test} from "forge-std/Test.sol";
-import "forge-std/StdUtils.sol";
+import {stdStorage, StdStorage, Test} from "forge-std/Test.sol";
 import "../utils/Utils.sol";
 import "../src/MultiSigWallet.sol";
 import "../src/DMSD.sol";
@@ -31,6 +30,10 @@ abstract contract BaseSetup is DMSD, Test {
     constructor() DMSD(DAI) {
         console.log("Base setup constructor");
     }
+
+    // function writeTokenBalance(address who, uint256 amt) internal {
+    //     stdstore.target(address(this)).sig(IERC20(DAI).balanceOf.selector).with_key(who).checked_write(amt);
+    // }
 
     function setUp() public virtual {
         utils = new Utils();
@@ -78,6 +81,7 @@ abstract contract BaseSetup is DMSD, Test {
 
         testAdminAddress = testUsers[0];
         vm.label(testAdminAddress, "Admin");
+        // writeTokenBalance(address(this), address(DAI), 1_000_000_000 * 1e18);
         adminRecoveryAddress = testUsers[1];
         vm.label(adminRecoveryAddress, "RecoveryAddress");
 
@@ -116,7 +120,7 @@ contract whenContractIsCreatedTest is BaseSetup {
         // check if the contract is deployed
         assertTrue(address(this) != address(0));
         // check if the contract is deployed with the correct MATIC token address
-        assertTrue(address(dmsd.token()) == DAI);
+        assertTrue(address(dmsd.dToken()) == DAI);
     }
 }
 
@@ -282,7 +286,7 @@ contract createRecipientsMultisigTest is BaseSetup {
         dmsd.registerRecipient(charlie, recipient3.email, recipient3.firstName, recipient3.lastName);
         dmsd.createRecipientsMultisig(multisigOwners, 2);
         vm.stopPrank();
-        deal(address(token), testAdminAddress, 10000e18);
+        deal(address(dToken), testAdminAddress, 100e18);
         console.log("Create recipients multisig test");
     }
 
@@ -307,15 +311,20 @@ contract createRecipientsMultisigTest is BaseSetup {
     function testApproveTransfer() public {
         console.log("Test approve transfer");
         vm.startPrank(testAdminAddress);
-        assertTrue(token.approve(address(dmsd), testAdminAddress.balance));
+        assertTrue(dToken.approve(address(dmsd), testAdminAddress.balance));
         vm.stopPrank();
     }
 
     // function that tests transferToMultisig
     function testTransferToMultisig() public {
         console.log("Test transfer to multisig");
+        // uint256 slot = stdstore.target(address(this)).sig(token.balanceOf.selector).with_key(testAdminAddress).find();
+        // bytes32 data = vm.load(address(this), bytes32(slot));
+        // stdstore.target(address(this)).sig(dmsd.token.balanceOf.selector).with_key(testAdminAddress).checked_write(
+        //     1_000_000_000 * 1e18
+        // );
         vm.startPrank(testAdminAddress);
-        token.approve(address(dmsd), testAdminAddress.balance);
+        dToken.approve(address(dmsd), testAdminAddress.balance);
         assertTrue(dmsd.transferToMultisig(10));
         vm.stopPrank();
     }

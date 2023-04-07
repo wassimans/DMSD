@@ -17,7 +17,7 @@ contract DMSD {
 
     MultiSigWallet public personalMultiSig; // Instance of the personal multisig wallet
     MultiSigWallet public recipientMultiSig; // Instance of of the recipients multisig wallet
-    ERC20 public token; // Instance of the token contract
+    ERC20 public dToken; // Instance of the token contract
 
     address[] public userIndex; // Array of all user addresses
     mapping(address => User) public users; // Mapping of user addresses to user structs
@@ -70,7 +70,7 @@ contract DMSD {
 
     // constructor
     constructor(address _tokenAddress) {
-        token = ERC20(_tokenAddress);
+        dToken = ERC20(_tokenAddress);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////
@@ -120,7 +120,7 @@ contract DMSD {
      */
     function transferToMultisig(uint256 _amount) external onlyAdmin returns (bool) {
         // Transfer tokens from EOA to multi-sig wallet
-        token.approve(address(this), msg.sender.balance);
+        dToken.approve(address(this), msg.sender.balance);
         return _transferFromToMultisig(_amount);
     }
 
@@ -136,12 +136,12 @@ contract DMSD {
         // Transfer tokens from EOA to multi-sig wallet
         if (_userRecipients[adminAddress].length > 0) {
             require(
-                token.transferFrom(msg.sender, address(recipientMultiSig), _amount),
+                dToken.transferFrom(msg.sender, address(recipientMultiSig), _amount),
                 "DMSD: transfer to recipient multisig failed"
             );
         } else {
             require(
-                token.transferFrom(msg.sender, address(personalMultiSig), _amount),
+                dToken.transferFrom(msg.sender, address(personalMultiSig), _amount),
                 "DMSD: transfer to personal multisig failed"
             );
         }
@@ -256,7 +256,7 @@ contract DMSD {
     }
 
     //////////////////////////////////////////////////////////////////////////////////////
-    ///////////////////////////////// Getters and setters ////////////////////////////////
+    /////////////////////////// Getters, setters and helpers /////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
 
     function _setAdminAddress(address _addr) private {
