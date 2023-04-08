@@ -1,7 +1,7 @@
 import { configureChains, createClient } from "wagmi";
-import { foundry, goerli } from "wagmi/chains";
+import { foundry, polygonMumbai } from "wagmi/chains";
 import { jsonRpcProvider } from "wagmi/providers/jsonRpc";
-import { infuraProvider } from "wagmi/providers/infura";
+import { alchemyProvider } from "wagmi/providers/alchemy";
 import { getDefaultWallets } from "@rainbow-me/rainbowkit";
 
 /**
@@ -10,13 +10,13 @@ import { getDefaultWallets } from "@rainbow-me/rainbowkit";
  * @see https://wagmi.sh/react/providers/configuring-chains
  */
 const { chains, provider, webSocketProvider } = configureChains(
-  [goerli, foundry],
+  [polygonMumbai, foundry],
   [
     /**
      * Uncomment this line to use Alchemy as your provider
      * @see https://wagmi.sh/react/providers/alchemy
      */
-    infuraProvider({ apiKey: import.meta.env.INFURA_API_KEY! }),
+    alchemyProvider({ apiKey: import.meta.env.ALCHEMY_API_KEY! }),
     /**
      * Tells wagmi to use the default RPC URL for each chain
      * for some dapps the higher rate limits of Alchemy may be required
@@ -44,7 +44,7 @@ export { chains };
  * @see https://wagmi.sh/react/connectors
  */
 const { connectors } = getDefaultWallets({
-  appName: "Enclume",
+  appName: "DMSD",
   chains,
 });
 
