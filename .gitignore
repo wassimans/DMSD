@@ -40,8 +40,9 @@ yarn-error.log*
 # vercel and next
 
 .vercel
-# ignore all .next folder
-**/.next
+# ignore all .next folder and its contents
+
+.next
 
 
 # typescript
