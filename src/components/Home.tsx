@@ -5,7 +5,7 @@ export default function Home() {
   if (status === "authenticated") {
     return (
       <>
-        <p>Signed in as {session.user.name}</p>
+        {/* <p>Signed in as {session.!user.!name}</p> */}
 
         {/* Update the value by sending it to the backend. */}
         <button onClick={() => update({ name: "John Doe" })}>Edit name</button>
