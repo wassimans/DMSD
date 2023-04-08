@@ -7,11 +7,13 @@ import {
   BoxProps,
 } from "@chakra-ui/react";
 import { FiHome } from "react-icons/fi";
-import { SlWallet } from "react-icons/sl";
+import { SlLogout, SlWallet } from "react-icons/sl";
 import { MdAccountBalance } from "react-icons/md";
 import { IconType } from "react-icons";
-import NavItem from "./NavItem";
+import NavItem from "./navItem";
 import { useState } from "react";
+import { signOut, useSession } from "next-auth/react";
+import { useRouter } from "next/router";
 
 interface LinkItemProps {
   name: string;
@@ -28,7 +30,13 @@ interface SidebarProps extends BoxProps {
   change: (name: string) => void;
 }
 
-const SidebarContent = ({ onClose, change, ...rest }: SidebarProps) => {
+export default function SideBarContent({
+  onClose,
+  change,
+  ...rest
+}: SidebarProps) {
+  const router = useRouter();
+  const { data: session, status, update } = useSession();
   const [focusHome, setFocusHome] = useState(false);
   const [focusSubscription, setFocusSubscription] = useState(false);
   const [focusWallets, setFocusWallets] = useState(false);
@@ -51,6 +59,8 @@ const SidebarContent = ({ onClose, change, ...rest }: SidebarProps) => {
         setFocusSubscription(false);
         setFocusWallets(true);
         break;
+      case "Déconnexion":
+        signOut({ redirect: true });
       default:
         break;
     }
@@ -93,8 +103,14 @@ const SidebarContent = ({ onClose, change, ...rest }: SidebarProps) => {
           {link.name}
         </NavItem>
       ))}
+      <NavItem
+        key="Déconnexion"
+        icon={SlLogout}
+        focusItem={resolveFocus("Déconnexion")}
+        onClick={() => signOut({ redirect: true, callbackUrl: "/login" })}
+      >
+        Déconnexion
+      </NavItem>
     </Box>
   );
-};
-
-export default SidebarContent;
+}

@@ -2,7 +2,7 @@ import { configureChains, createClient } from "wagmi";
 import { foundry, polygonMumbai } from "wagmi/chains";
 import { jsonRpcProvider } from "wagmi/providers/jsonRpc";
 import { alchemyProvider } from "wagmi/providers/alchemy";
-import { getDefaultWallets } from "@rainbow-me/rainbowkit";
+import { MetaMaskConnector } from "wagmi/connectors/metaMask";
 
 /**
  * Tell wagmi which chains you want to support
@@ -16,7 +16,7 @@ const { chains, provider, webSocketProvider } = configureChains(
      * Uncomment this line to use Alchemy as your provider
      * @see https://wagmi.sh/react/providers/alchemy
      */
-    alchemyProvider({ apiKey: import.meta.env.ALCHEMY_API_KEY! }),
+    alchemyProvider({ apiKey: process.env.ALCHEMY_API_KEY! }),
     /**
      * Tells wagmi to use the default RPC URL for each chain
      * for some dapps the higher rate limits of Alchemy may be required
@@ -43,8 +43,7 @@ export { chains };
  * @see https://www.rainbowkit.com/docs/custom-wallet-list
  * @see https://wagmi.sh/react/connectors
  */
-const { connectors } = getDefaultWallets({
-  appName: "DMSD",
+const connector = new MetaMaskConnector({
   chains,
 });
 
@@ -54,7 +53,7 @@ const { connectors } = getDefaultWallets({
  */
 export const client = createClient({
   autoConnect: true,
-  connectors: connectors,
   provider,
+  connectors: [connector],
   webSocketProvider,
 });

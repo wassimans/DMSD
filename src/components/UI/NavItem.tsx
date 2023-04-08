@@ -7,7 +7,13 @@ interface NavItemProps extends FlexProps {
   children: ReactText;
   focusItem: boolean;
 }
-const NavItem = ({ icon, children, focusItem, ...rest }: NavItemProps) => {
+
+export default function NavItem({
+  icon,
+  children,
+  focusItem,
+  ...rest
+}: NavItemProps) {
   return (
     <Link
       href="#"
@@ -43,6 +49,4 @@ const NavItem = ({ icon, children, focusItem, ...rest }: NavItemProps) => {
       </Flex>
     </Link>
   );
-};
-
-export default NavItem;
+}
