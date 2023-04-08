@@ -41,25 +41,46 @@ export default function Login() {
       connector: new MetaMaskConnector(),
     });
 
-    const { message } = await requestChallengeAsync({
+    type Challenge = {
+      id: string;
+      profileId: string;
+      message: string;
+    };
+    let message: string;
+    let signature: `0x${string}`;
+    let url: string;
+
+    const response = await requestChallengeAsync({
       address: account,
       chainId: chain.id,
     });
 
-    const signature = await signMessageAsync({ message });
+    if (response) {
+      message = response.message;
+      signature = await signMessageAsync({ message });
+      // redirect user after success authentication to '/user' page
+      const signInResponse = await signIn("moralis-auth", {
+        message,
+        signature,
+        redirect: false,
+        callbackUrl: "/dmsd",
+      });
 
-    // redirect user after success authentication to '/user' page
-    const { url } = await signIn("moralis-auth", {
-      message,
-      signature,
-      redirect: false,
-      callbackUrl: "/dmsd",
-    });
-    /**
-     * instead of using signIn(..., redirect: "/user")
-     * we get the url from callback and push it to the router to avoid page refreshing
-     */
-    router.push(url);
+      if (signInResponse && signInResponse.url) {
+        const { url } = signInResponse;
+        /**
+         * instead of using signIn(..., redirect: "/user")
+         * we get the url from callback and push it to the router to avoid page refreshing
+         */
+        router.push(url);
+      } else {
+        // Handle the case when the response is undefined
+        throw new Error("signIn response is undefined");
+      }
+    } else {
+      // Handle the case when the response is undefined
+      throw new Error("requestChallenge response is undefined");
+    }
   };
   const [state, dispatch] = useReducer(reducer, initialState);
 
