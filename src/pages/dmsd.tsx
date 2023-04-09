@@ -9,8 +9,8 @@ import {
 import Home from "../Components/home";
 import Subscription from "../Components/subscription";
 import Wallets from "../Components/wallets";
-import MobileNav from "../Components/UI/mobileNave";
-import SidebarContent from "../Components/UI/sideBarContent";
+import MobileNav from "../Components/UI/MobileNave";
+import SidebarContent from "../Components/UI/SideBarContent";
 
 export default function DMSD() {
   const [activePage, setActivePage] = useState({

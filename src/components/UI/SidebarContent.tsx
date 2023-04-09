@@ -13,7 +13,7 @@ import { IconType } from "react-icons";
 import { useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/router";
-import NavItem from "./navItem";
+import NavItem from "./NavItem";
 
 interface LinkItemProps {
   name: string;
