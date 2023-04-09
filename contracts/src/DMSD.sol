@@ -7,8 +7,7 @@ import "./MultiSigWallet.sol";
 contract DMSD {
     struct User {
         string email;
-        string firstName;
-        string lastName;
+        string username;
         bool isRegistered;
         bool isAdmin;
         bool withRecipients;
@@ -23,13 +22,14 @@ contract DMSD {
     mapping(address => User) public users; // Mapping of user addresses to user structs
     mapping(address => address[]) private _userRecipients; // Mapping of user addresses to recipient addresses
     address public adminAddress; // Address of the admin
-    address public recoveryAddress; // Address of the recovery address
+    address public walletToProtect; // Address of the wallet to protect
+    address[2] public recoveryWallets; // Array of addresses of the recovery wallets
 
     // We index the userAddresses so clients can quickly filter,
     // sort and find relevant information in the event logs
     event LogNewUser(address indexed userAddress, uint256 index, string email);
     event LogDeleteUser(address indexed userAddress, uint256 index, string email);
-    event LogNewPersonalMultisig(address indexed recoveryAddress);
+    event LogNewPersonalMultisig(address[2] indexed recoveryWallets);
     event LogNewRecipientMultisig(address[] indexed owners, uint256 indexed numConfirmationsRequired);
     event Transfer(address indexed from, address indexed to, uint256 value);
 
@@ -73,18 +73,24 @@ contract DMSD {
     //////////////////////////////////////////////////////////////////////////////////////
 
     /**
-     * @dev Creates a new personal multisig wallet contract with the sender and the recovery address as owners.
-     * @param _recovAddr The address that will be set as the recovery address for the personal multisig wallet.
+     * @dev Creates a new personal multisig wallet contract with the recovery addresses and the contract itself as owners.
+     * @param _recovAddrs The addresses that will be set as the recovery addresses for the personal multisig wallet.
      * @return A boolean indicating whether the personal multisig wallet was successfully created.
      *  @dev The event LogNewPersonalMultisig will be emitted upon successful deployment of the new multisignature wallet contract.
      */
-    function createPersonalMultisig(address _recovAddr) external onlyAdmin returns (bool) {
-        _setRecoveryAddress(_recovAddr);
-        address[] memory owners = new address[](2);
-        owners[0] = address(msg.sender);
-        owners[1] = address(recoveryAddress);
-        personalMultiSig = new MultiSigWallet(owners, 1);
-        emit LogNewPersonalMultisig(_recovAddr);
+    function createPersonalMultisig(address[2] memory _recovAddrs, address _walletToProtect)
+        external
+        onlyAdmin
+        returns (bool)
+    {
+        _setRecoveryWallets(_recovAddrs);
+        _setWalletToProtect(_walletToProtect);
+        address[] memory owners = new address[](3);
+        owners[0] = _recovAddrs[0];
+        owners[1] = _recovAddrs[1];
+        owners[2] = address(this);
+        personalMultiSig = new MultiSigWallet(owners, 2);
+        emit LogNewPersonalMultisig(_recovAddrs);
         return true;
     }
 
@@ -156,19 +162,17 @@ contract DMSD {
      * @dev Registers an admin with the given email, first name, and last name.
      * Only unregistered addresses can register as admin.
      * @param _userEmail The email address of the user.
-     * @param _firstName The first name of the user.
-     * @param _lastName The last name of the user.
+     * @param _username The username of the user.
      * @return bool true if registration is successful.
      */
-    function registerAdmin(string calldata _userEmail, string calldata _firstName, string calldata _lastName)
+    function registerAdmin(string calldata _userEmail, string calldata _username)
         external
         onlyUnregistered(msg.sender)
         returns (bool)
     {
         _setAdminAddress(msg.sender);
         users[msg.sender].email = _userEmail;
-        users[msg.sender].firstName = _firstName;
-        users[msg.sender].lastName = _lastName;
+        users[msg.sender].username = _username;
         users[msg.sender].isRegistered = true;
         users[msg.sender].isAdmin = true;
         users[msg.sender].withRecipients = false;
@@ -183,19 +187,17 @@ contract DMSD {
      * @dev The function can only be called by an admin user and can only register an unregistered user.
      * @param _userAddress The address of the user to be registered as a recipient.
      * @param _userEmail The email address of the user to be registered.
-     * @param _firstName The first name of the user to be registered.
-     * @param _lastName The last name of the user to be registered.
+     * @param _username The username of the user to be registered.
      * @return A boolean indicating whether the registration was successful or not.
      */
-    function registerRecipient(
-        address _userAddress,
-        string calldata _userEmail,
-        string calldata _firstName,
-        string calldata _lastName
-    ) external onlyAdmin onlyUnregistered(_userAddress) returns (bool) {
+    function registerRecipient(address _userAddress, string calldata _userEmail, string calldata _username)
+        external
+        onlyAdmin
+        onlyUnregistered(_userAddress)
+        returns (bool)
+    {
         users[_userAddress].email = _userEmail;
-        users[_userAddress].firstName = _firstName;
-        users[_userAddress].lastName = _lastName;
+        users[_userAddress].username = _username;
         users[_userAddress].isRegistered = true;
         users[_userAddress].isAdmin = false;
         users[msg.sender].withRecipients = false;
@@ -215,15 +217,14 @@ contract DMSD {
     }
 
     /**
-     * @dev Returns the email, first name, last name and admin status of a registered user.
+     * @dev Returns the email, username and admin status of a registered user.
      *
      * Requirements:
      * - The user must be registered.
      *
      * @param _userAddress The address of the user to retrieve information for.
      * @return userEmail The email address associated with the user.
-     * @return firstName The first name associated with the user.
-     * @return lastName The last name associated with the user.
+     * @return username The username associated with the user.
      * @return isAdmin A boolean indicating whether the user is an admin or not.
      */
     function getUser(address _userAddress)
@@ -231,19 +232,11 @@ contract DMSD {
         view
         usersNotEmpty
         isUser(_userAddress)
-        returns (
-            string memory userEmail,
-            string memory firstName,
-            string memory lastName,
-            bool isAdmin,
-            bool isRegistered,
-            bool withRecipients
-        )
+        returns (string memory userEmail, string memory username, bool isAdmin, bool isRegistered, bool withRecipients)
     {
         return (
             users[_userAddress].email,
-            users[_userAddress].firstName,
-            users[_userAddress].lastName,
+            users[_userAddress].username,
             users[_userAddress].isAdmin,
             users[_userAddress].isRegistered,
             users[_userAddress].withRecipients
@@ -258,16 +251,24 @@ contract DMSD {
         adminAddress = _addr;
     }
 
-    function getRecoveryAddress() external view onlyAdmin returns (address) {
-        return recoveryAddress;
+    function getRecoveryWallets() external view onlyAdmin returns (address[2] memory) {
+        return recoveryWallets;
     }
 
-    function _setRecoveryAddress(address _recAddr) private {
-        require(_recAddr != address(0), "DMSD: setting recovery address to 0");
-        recoveryAddress = _recAddr;
+    function _setRecoveryWallets(address[2] memory _recAddrs) private {
+        require(_recAddrs[0] != address(0) && _recAddrs[1] != address(0), "DMSD: setting recovery wallets to 0");
+        recoveryWallets = _recAddrs;
     }
 
     function setToken(address _dToken) public {
         dToken = ERC20(_dToken);
+    }
+
+    function _setWalletToProtect(address _walletToProtect) private {
+        walletToProtect = _walletToProtect;
+    }
+
+    function getWalletToProtect() external view returns (address) {
+        return walletToProtect;
     }
 }

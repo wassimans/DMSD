@@ -8,7 +8,7 @@
     "lint": "next lint",
     "anvil": "source .env && anvil --fork-url $MUMBAI_RPC_URL --chain-id $MUMBAI_CHAIN_ID",
     "deploy": "source .env && forge create contracts/src/DMSD.sol:DMSD --rpc-url $FORGE_RPC_URL --private-key $FORGE_PRIVATE_KEY --etherscan-api-key $ETHERSCAN_API_KEY --verify",
-    "deploy:goerli": "source .env && forge create contracts/src/DMSD.sol:DMSD --rpc-url $MUMBAI_RPC_URL --private-key $PRIVATE_KEY --etherscan-api-key $ETHERSCAN_API_KEY --verify",
+    "deploy:mumbai": "source .env && forge create contracts/src/DMSD.sol:DMSD --rpc-url $MUMBAI_RPC_URL --private-key $PRIVATE_KEY --etherscan-api-key $ETHERSCAN_API_KEY --verify",
     "deploy:anvil": "source .env && forge create contracts/src/DMSD.sol:DMSD --rpc-url $FORGE_RPC_URL --private-key $FORGE_PRIVATE_KEY --legacy",
     "dev": "npm run wagmi && next dev",
     "dev:foundry": "npm run dev & wagmi generate --watch & npm run anvil",
