@@ -1,6 +1,6 @@
 import { useContext } from "react";
 import DmsdContext from "./DmsdContext";
 
-const useDmsd = () => useContext(DmsdContext);
+const useDmsdApp = () => useContext(DmsdContext);
 
-export default useDmsd;
+export default useDmsdApp;

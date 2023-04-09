@@ -1,4 +1,3 @@
-import { initialState, reducer } from "@/contexts/DmsdContext/state";
 import {
   Box,
   Heading,
@@ -13,9 +12,8 @@ import {
   WrapItem,
 } from "@chakra-ui/react";
 import { useAuthRequestChallengeEvm } from "@moralisweb3/next";
-import { getSession, signIn } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { useRouter } from "next/router";
-import { useCallback, useEffect, useReducer } from "react";
 import { useAccount, useConnect, useDisconnect, useSignMessage } from "wagmi";
 import { MetaMaskConnector } from "wagmi/connectors/metaMask";
 
@@ -26,10 +24,9 @@ export default function Login() {
   const { isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const { requestChallengeAsync } = useAuthRequestChallengeEvm();
-  const { push } = useRouter();
 
   function handleClick() {
-    router.push("/signup");
+    router.push("/connect");
   }
 
   const handleAuth = async () => {
@@ -82,49 +79,6 @@ export default function Login() {
       throw new Error("requestChallenge response is undefined");
     }
   };
-  const [state, dispatch] = useReducer(reducer, initialState);
-
-  // async function getServerSideProps(context) {
-  //   const session = await getSession(context);
-
-  //   // redirect if not authenticated
-  //   if (!session) {
-  //     return {
-  //       redirect: {
-  //         destination: "/login",
-  //         permanent: false,
-  //       },
-  //     };
-  //   }
-
-  //   return {
-  //     props: { user: session.user },
-  //   };
-  // }
-
-  // const init = useEffect(async () => {
-  //   const session = await getSession(context);
-
-  //   // redirect if not authenticated
-  //   if (!session) {
-  //     return {
-  //       redirect: {
-  //         destination: "/login",
-  //         permanent: false,
-  //       },
-  //     };
-  //   }
-
-  //   return {
-  //     props: { user: session.user },
-  //   };
-
-  //     dispatch({
-  //       type: actions.init,
-  //       data: { artifact, web3, accounts, networkID, contract, txhash },
-  //     });
-
-  // }, []);
   return (
     <>
       <Wrap justify="left" margin={5}>

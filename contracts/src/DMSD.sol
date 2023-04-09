@@ -52,13 +52,6 @@ contract DMSD {
         _;
     }
 
-    // Modifier to check the existence of keys before we permit any changes,
-    // and before we return an instance
-    // modifier isUser(address _userAddress) {
-    //     require(userIndex[users[_userAddress].index] == _userAddress, "DMSD: user does not exist.");
-    //     _;
-    // }
-
     modifier isUser(address _userAddress) {
         require(users[_userAddress].isRegistered, "DMSD: user does not exist.");
         require(

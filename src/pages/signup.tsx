@@ -1,6 +1,11 @@
+import { useDmsdApp } from "@/contexts/DmsdContext";
+import {
+  useDmsd,
+  useDmsdRegisterAdmin,
+  usePrepareDmsdRegisterAdmin,
+} from "@/generated";
 import {
   Box,
-  Flex,
   Stack,
   Heading,
   Text,
@@ -8,12 +13,74 @@ import {
   Input,
   Button,
   SimpleGrid,
+  Wrap,
+  WrapItem,
 } from "@chakra-ui/react";
-import { useAccount } from "wagmi";
+import { useAuthRequestChallengeEvm } from "@moralisweb3/next";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
+import {
+  useAccount,
+  useConnect,
+  useDisconnect,
+  useSignMessage,
+  useWaitForTransaction,
+} from "wagmi";
+import { MetaMaskConnector } from "wagmi/connectors/metaMask";
 
 export default function Signup() {
-  const contract_address = "0x296bb848a0333B21DfF875BE7d07361A18738727";
-  const { address, isConnecting, isDisconnected } = useAccount();
+  const router = useRouter();
+  const {
+    state: { contractAddress, userAddress },
+  } = useDmsdApp();
+
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+
+  const contract = useDmsd();
+
+  // useWaitForTransaction({
+  //   hash: data?.hash,
+  //   onSuccess: () => refetch(),
+  // });
+
+  const handleUsername = (e: any) => {
+    setUsername(e.target.value);
+  };
+
+  const handleEmail = (e: any) => {
+    setEmail(e.target.value);
+  };
+
+  const { config } = usePrepareDmsdRegisterAdmin({
+    address: contractAddress,
+    args: [username, email],
+  });
+
+  const { data, status, write, isLoading, isSuccess, writeAsync } =
+    useDmsdRegisterAdmin({
+      ...config,
+    });
+
+  const handleValidate = async () => {
+    write?.();
+
+    // writeAsync?.();
+    // try {
+    //   const response = await contract?.registerAdmin(username, email);
+    //   console.log(response);
+    //   router.push("/dmsd");
+    // } catch (error) {
+    //   alert(error);
+    // }
+  };
+
+  useWaitForTransaction({
+    hash: data?.hash,
+    onSuccess: () => router.push("/dmsd"),
+  });
+
   return (
     <Container
       as={SimpleGrid}
@@ -24,7 +91,7 @@ export default function Signup() {
       py={{ base: 10, sm: 20, lg: 32 }}
     >
       <Stack
-        bg={"gray.50"}
+        bg={"gray.100"}
         rounded={"xl"}
         p={{ base: 4, sm: 6, md: 8 }}
         spacing={{ base: 8 }}
@@ -42,69 +109,66 @@ export default function Signup() {
         <Box as={"form"} mt={10} w="100%">
           <Stack spacing={4}>
             <Input
-              placeholder="Nom"
-              bg={"gray.100"}
+              placeholder="Votre pseudo"
+              bg={"gray.20"}
               border={0}
               color={"gray.500"}
               _placeholder={{
                 color: "gray.500",
               }}
-            />
-            <Input
-              placeholder="Prénom"
-              bg={"gray.100"}
-              border={0}
-              color={"gray.500"}
-              _placeholder={{
-                color: "gray.500",
+              value={username}
+              onChange={(e) => {
+                handleUsername(e);
               }}
             />
             <Input
               placeholder="email"
-              bg={"gray.100"}
+              type="email"
+              bg={"gray.20"}
               border={0}
               color={"gray.500"}
               _placeholder={{
                 color: "gray.500",
               }}
-            />
-            <Input
-              placeholder="Votre wallet"
-              bg={"gray.100"}
-              border={0}
-              color={"gray.500"}
-              mb={8}
-              _placeholder={{
-                color: "gray.500",
+              value={email}
+              onChange={(e) => {
+                handleEmail(e);
               }}
             />
             <Text
               as={"span"}
               color={"gray.700"}
               lineHeight={1}
-              fontSize={{ base: "xl", sm: "2xl", md: "3xl" }}
+              fontSize={{ base: "l", sm: "xl", md: "2xl" }}
               _placeholder={{
                 color: "gray.500",
               }}
             >
-              Finalisez votre inscription en souscrivant à nos services
+              Finalisez votre inscription
             </Text>
           </Stack>
-          <Button
-            fontFamily={"heading"}
-            mt={8}
-            w={"full"}
-            backgroundColor="green.400"
-            color={"white"}
-            _hover={{
-              bg: "green.500",
-            }}
-          >
-            Suivant
-          </Button>
+          <Wrap justify="center" margin={5}>
+            <WrapItem>
+              <Button
+                onClick={handleValidate}
+                colorScheme={"green"}
+                bg={"gray.700"}
+                rounded={"full"}
+                px={6}
+                _hover={{
+                  bg: "green.500",
+                }}
+              >
+                Valider
+              </Button>
+            </WrapItem>
+          </Wrap>
         </Box>
         form
       </Stack>
     </Container>
   );
+}
+function disconnectAsync() {
+  throw new Error("Function not implemented.");
 }

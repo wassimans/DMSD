@@ -1,7 +1,6 @@
-type User = any; // Replace `any` with the actual user type
-
 interface State {
-  user: User | null;
+  contractAddress: string | null;
+  userAddress: string | null;
 }
 
 interface Action {
@@ -15,7 +14,8 @@ const actions = {
 };
 
 const initialState: State = {
-  user: null,
+  contractAddress: "0x971298ee76a3cb04d80e418f32ec54b815b0a1f7",
+  userAddress: null,
 };
 
 const reducer = (state: State, action: Action): State => {
@@ -24,7 +24,7 @@ const reducer = (state: State, action: Action): State => {
     case actions.addUser: {
       return {
         ...state,
-        user: payload,
+        userAddress: payload,
       };
     }
     default:
