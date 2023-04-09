@@ -10,10 +10,10 @@ import { FiHome } from "react-icons/fi";
 import { SlLogout, SlWallet } from "react-icons/sl";
 import { MdAccountBalance } from "react-icons/md";
 import { IconType } from "react-icons";
-import NavItem from "./navItem";
 import { useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/router";
+import NavItem from "./navItem";
 
 interface LinkItemProps {
   name: string;
