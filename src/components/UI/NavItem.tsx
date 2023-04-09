@@ -8,12 +8,7 @@ interface NavItemProps extends FlexProps {
   focusItem: boolean;
 }
 
-export default function NavItem({
-  icon,
-  children,
-  focusItem,
-  ...rest
-}: NavItemProps) {
+const NavItem = ({ icon, children, focusItem, ...rest }: NavItemProps) => {
   return (
     <Link
       href="#"
@@ -49,4 +44,6 @@ export default function NavItem({
       </Flex>
     </Link>
   );
-}
+};
+
+export default NavItem;
