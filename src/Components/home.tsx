@@ -1,24 +1,38 @@
+import { useDmsdApp } from "@/contexts/DmsdContext";
+import {
+  useDmsdGetUser,
+  useDmsdGetUserAtIndex,
+  useDmsdRead,
+} from "@/generated";
+import { BigNumber } from "ethers";
 import { signOut, useSession } from "next-auth/react";
+import { useAccount } from "wagmi";
 
 export default function Home() {
-  const { data: session, status, update } = useSession();
-  if (status === "authenticated") {
-    return (
-      <>
-        {/* <p>Signed in as {session.!user.!name}</p> */}
+  const {
+    state: { contractAddress },
+  } = useDmsdApp();
+  const { address } = useAccount();
 
-        {/* Update the value by sending it to the backend. */}
-        <button onClick={() => update({ name: "John Doe" })}>Edit name</button>
-        {/*
-         * Only trigger a session update, assuming you already updated the value server-side.
-         * All `useSession().data` references will be updated.
-         */}
-        <button onClick={() => update()}>Edit name</button>
-        <pre>{JSON.stringify(session.user, null, 2)}</pre>
-        <button onClick={() => signOut({ redirect: true })}>Sign out</button>
-      </>
-    );
-  }
+  const { data } = useDmsdGetUser({
+    address: contractAddress,
+    args: [address!],
+  });
 
-  return <a href="/api/auth/signin">Sign in</a>;
+  console.log(data);
+
+  return (
+    <>
+      <div>{data?.[0]}</div>
+      <div>{data?.[1]}</div>
+      <div>{data?.[2]}</div>
+      <div>{data?.[3]}</div>
+      <div>{data?.[4]}</div>
+    </>
+  );
+}
+function useDmsdGetAtIndex(arg0: { address: any; args: number[] }): {
+  data: any;
+} {
+  throw new Error("Function not implemented.");
 }

@@ -1,9 +1,5 @@
 import { useDmsdApp } from "@/contexts/DmsdContext";
-import {
-  useDmsd,
-  useDmsdRegisterAdmin,
-  usePrepareDmsdRegisterAdmin,
-} from "@/generated";
+import { useDmsdRegisterAdmin, usePrepareDmsdRegisterAdmin } from "@/generated";
 import {
   Box,
   Stack,
@@ -16,18 +12,9 @@ import {
   Wrap,
   WrapItem,
 } from "@chakra-ui/react";
-import { useAuthRequestChallengeEvm } from "@moralisweb3/next";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
-import {
-  useAccount,
-  useConnect,
-  useDisconnect,
-  useSignMessage,
-  useWaitForTransaction,
-} from "wagmi";
-import { MetaMaskConnector } from "wagmi/connectors/metaMask";
+import { useWaitForTransaction } from "wagmi";
 
 export default function Signup() {
   const router = useRouter();
@@ -38,43 +25,29 @@ export default function Signup() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
 
-  const contract = useDmsd();
-
-  // useWaitForTransaction({
-  //   hash: data?.hash,
-  //   onSuccess: () => refetch(),
-  // });
+  const debouncedUsername = useDebounce(username, 500);
+  const debouncedEmail = useDebounce(email, 500);
 
   const handleUsername = (e: any) => {
+    e.preventDefault();
     setUsername(e.target.value);
   };
 
   const handleEmail = (e: any) => {
+    e.preventDefault();
     setEmail(e.target.value);
   };
 
   const { config } = usePrepareDmsdRegisterAdmin({
     address: contractAddress,
-    args: [username, email],
+    args: [debouncedEmail, debouncedUsername],
+    overrides: { from: userAddress },
+    chainId: 80001,
   });
 
-  const { data, status, write, isLoading, isSuccess, writeAsync } =
-    useDmsdRegisterAdmin({
-      ...config,
-    });
-
-  const handleValidate = async () => {
-    write?.();
-
-    // writeAsync?.();
-    // try {
-    //   const response = await contract?.registerAdmin(username, email);
-    //   console.log(response);
-    //   router.push("/dmsd");
-    // } catch (error) {
-    //   alert(error);
-    // }
-  };
+  const { data, write } = useDmsdRegisterAdmin({
+    ...config,
+  });
 
   useWaitForTransaction({
     hash: data?.hash,
@@ -150,7 +123,8 @@ export default function Signup() {
           <Wrap justify="center" margin={5}>
             <WrapItem>
               <Button
-                onClick={handleValidate}
+                disabled={!write}
+                onClick={() => write?.()}
                 colorScheme={"green"}
                 bg={"gray.700"}
                 rounded={"full"}
@@ -169,6 +143,20 @@ export default function Signup() {
     </Container>
   );
 }
-function disconnectAsync() {
-  throw new Error("Function not implemented.");
+
+// create a hook to debounce the value
+function useDebounce(value: any, delay: number) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
 }

@@ -1,6 +1,6 @@
 interface State {
-  contractAddress: string | null;
-  userAddress: string | null;
+  contractAddress: string | undefined;
+  userAddress: string | undefined;
 }
 
 interface Action {
@@ -14,8 +14,8 @@ const actions = {
 };
 
 const initialState: State = {
-  contractAddress: "0x971298ee76a3cb04d80e418f32ec54b815b0a1f7",
-  userAddress: null,
+  contractAddress: "0xdfDEAc5500C994ea915e46C8f6447CCB19911445",
+  userAddress: undefined,
 };
 
 const reducer = (state: State, action: Action): State => {
