@@ -1,4 +1,4 @@
-import { useDmsdApp } from "@/contexts/DmsdContext";
+import { User, useDmsdApp } from "@/contexts/DmsdContext";
 import { useDmsdGetRecoveryWallets, useDmsdGetUser } from "@/generated";
 import {
   TableContainer,
@@ -8,11 +8,13 @@ import {
   Tfoot,
   Heading,
 } from "@chakra-ui/react";
+import { useEffect } from "react";
 import { useAccount } from "wagmi";
 
 export default function Home() {
   const {
-    state: { contractAddress },
+    state: { contractAddress, currentUser },
+    dispatch,
   } = useDmsdApp();
   const { address } = useAccount();
 
@@ -20,6 +22,22 @@ export default function Home() {
     address: contractAddress,
     args: [address!],
   });
+
+  useEffect(() => {
+    (async function () {
+      if (userData) {
+        const currentUser: User = {
+          email: userData?.username,
+          username: userData?.userEmail,
+          isAdmin: userData?.isAdmin,
+          isRegistered: userData?.isRegistered,
+          subscribed: userData?.subscribed,
+          withRecipients: userData?.withRecipients,
+        };
+        dispatch({ type: "ADD_USER", payload: currentUser });
+      }
+    })();
+  }, [userData]);
 
   const { data: recoveryWallets } = useDmsdGetRecoveryWallets({
     address: contractAddress,
@@ -40,11 +58,11 @@ export default function Home() {
           <Tfoot>
             <Tr>
               <Th fontSize={"l"}>Pseudo</Th>
-              <Th>{userData?.[1]}</Th>
+              <Th>{currentUser?.username}</Th>
             </Tr>
             <Tr>
               <Th fontSize={"l"}>Email</Th>
-              <Th>{userData?.[0]}</Th>
+              <Th>{currentUser?.email}</Th>
             </Tr>
             <Tr>
               <Th fontSize={"l"}>Vos wallets protégés</Th>
@@ -68,8 +86,7 @@ export default function Home() {
             <Tr>
               <Th fontSize={"l"}>Services souscrits</Th>
               <Th>
-                {recoveryWallets?.[0] !==
-                ("0x0000000000000000000000000000000000000000" as `0x${string}`)
+                {currentUser?.subscribed
                   ? "Récupération des avoirs en cas de pertes des accès"
                   : "N/A"}
               </Th>
@@ -79,9 +96,4 @@ export default function Home() {
       </TableContainer>
     </>
   );
-}
-function useDmsdGetAtIndex(arg0: { address: any; args: number[] }): {
-  data: any;
-} {
-  throw new Error("Function not implemented.");
 }

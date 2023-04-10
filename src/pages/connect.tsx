@@ -60,7 +60,7 @@ export default function Connect() {
     if (response) {
       message = response.message;
       signature = await signMessageAsync({ message });
-      dispatch({ type: "ADD_USER", payload: account });
+      dispatch({ type: "ADD_USER_ADDRESS", payload: account });
       // redirect user after success authentication to '/user' page
       const signInResponse = await signIn("moralis-auth", {
         message,

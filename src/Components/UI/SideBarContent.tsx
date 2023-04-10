@@ -6,24 +6,23 @@ import {
   Text,
   BoxProps,
 } from "@chakra-ui/react";
-import { FiHome } from "react-icons/fi";
+import { SiVault } from "react-icons/si";
 import { SlLogout } from "react-icons/sl";
-import { MdAccountBalance } from "react-icons/md";
+import { AiFillHome } from "react-icons/ai";
+import { RiServiceFill, RiLogoutBoxFill } from "react-icons/ri";
 import { IconType } from "react-icons";
 import { useState } from "react";
-import { signOut, useSession } from "next-auth/react";
-import { useRouter } from "next/router";
+import { signOut } from "next-auth/react";
 import NavItem from "./NavItem";
-import { BsSafe } from "react-icons/bs";
 
 interface LinkItemProps {
   name: string;
   icon: IconType;
 }
 const LinkItems: Array<LinkItemProps> = [
-  { name: "Accueil", icon: FiHome },
-  { name: "Souscriptions", icon: MdAccountBalance },
-  { name: "Vault", icon: BsSafe },
+  { name: "Accueil", icon: AiFillHome },
+  { name: "Souscriptions", icon: RiServiceFill },
+  { name: "Vault MultiSig", icon: SiVault },
 ];
 
 interface SidebarProps extends BoxProps {
@@ -53,7 +52,7 @@ export default function SideBarContent({
         setFocusSubscription(true);
         setFocusVault(false);
         break;
-      case "Vault":
+      case "Vault MultiSig":
         setFocusHome(false);
         setFocusSubscription(false);
         setFocusVault(true);
@@ -70,7 +69,7 @@ export default function SideBarContent({
         return focusHome;
       case "Souscriptions":
         return focusSubscription;
-      case "Vault":
+      case "Vault MultiSig":
         return focusVault;
       default:
         return false;
@@ -104,7 +103,7 @@ export default function SideBarContent({
       ))}
       <NavItem
         key="Déconnexion"
-        icon={SlLogout}
+        icon={RiLogoutBoxFill}
         focusItem={resolveFocus("Déconnexion")}
         onClick={() => signOut({ redirect: true, callbackUrl: "/login" })}
       >

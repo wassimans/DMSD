@@ -1,7 +1,9 @@
 import { useDmsdApp } from "@/contexts/DmsdContext";
 import {
   useDmsdCreatePersonalMultisig,
+  useDmsdSubscribeAdmin,
   usePrepareDmsdCreatePersonalMultisig,
+  usePrepareDmsdSubscribeAdmin,
 } from "@/generated";
 import {
   Box,
@@ -23,66 +25,34 @@ import {
   IconButton,
   Divider,
 } from "@chakra-ui/react";
-import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { IoIosAddCircle } from "react-icons/io";
 import { useWaitForTransaction } from "wagmi";
+import Subscribe from "./subscribe";
+import { BigNumber } from "ethers";
 
 export default function Subscription() {
-  const router = useRouter();
-
   const {
-    state: { contractAddress, userAddress },
+    state: { contractAddress, userAddress, currentUser },
+    dispatch,
   } = useDmsdApp();
 
-  const [walletToProtect, setWalletToProtect] = useState("0x" as `0x${string}`);
-  const [recoveryWallet1, setRecoveryWallet1] = useState("0x" as `0x${string}`);
-  const [recoveryWallet2, setRecoveryWallet2] = useState("0x" as `0x${string}`);
-
-  const debouncedWalletToProtect = useDebounce(walletToProtect, 500);
-  const debouncedRecoveryWallet1 = useDebounce(recoveryWallet1, 500);
-  const debouncedRecoveryWallet2 = useDebounce(recoveryWallet2, 500);
-
-  const recoveryWallets: [`0x${string}`, `0x${string}`] = [
-    debouncedRecoveryWallet1,
-    debouncedRecoveryWallet2,
-  ];
-
-  const handleWalletToProtect = (e: any) => {
-    e.preventDefault();
-    setWalletToProtect(e.target.value);
-  };
-
-  const handleRecoveryWallet1 = (e: any) => {
-    e.preventDefault();
-    setRecoveryWallet1(e.target.value);
-  };
-
-  const handleRecoveryWallet2 = (e: any) => {
-    e.preventDefault();
-    setRecoveryWallet2(e.target.value);
-  };
-
-  const { config } = usePrepareDmsdCreatePersonalMultisig({
+  const { config } = usePrepareDmsdSubscribeAdmin({
     address: contractAddress,
-    args: [recoveryWallets, debouncedWalletToProtect],
+    // overrides: { from: userAddress, gasLimit: BigNumber.from("1000000") },
     overrides: { from: userAddress },
     chainId: 80001,
   });
 
-  const { data, write } = useDmsdCreatePersonalMultisig({
+  const { data, write } = useDmsdSubscribeAdmin({
     ...config,
   });
 
-  const reInitFields = () => {
-    setWalletToProtect("0x" as `0x${string}`);
-    setRecoveryWallet1("0x" as `0x${string}`);
-    setRecoveryWallet2("0x" as `0x${string}`);
-  };
-
   useWaitForTransaction({
     hash: data?.hash,
-    onSuccess: () => reInitFields(),
+    onSuccess: () => {
+      dispatch({ type: "SUBSCRIBE_USER", payload: true });
+    },
   });
 
   return (
@@ -96,6 +66,56 @@ export default function Subscription() {
         </Tab>
       </TabList>
       <TabPanels>
+        <TabPanel>
+          {!currentUser.subscribed && (
+            <Container
+              as={SimpleGrid}
+              justifyItems="center"
+              maxW={"7xl"}
+              columns={{ base: 1, md: 1 }}
+              spacing={{ base: 10, lg: 32 }}
+              py={{ base: 10, sm: 20, lg: 32 }}
+            >
+              <Stack
+                bg={"gray.100"}
+                rounded={"xl"}
+                p={{ base: 4, sm: 6, md: 8 }}
+                spacing={{ base: 8 }}
+                minW={{ lg: "lg" }}
+              >
+                <Stack spacing={4}>
+                  <Heading
+                    color={"gray.700"}
+                    lineHeight={2}
+                    fontSize={{ base: "xl", sm: "2xl", md: "3xl" }}
+                  >
+                    Peur de perdre vos accès, n'ayez crainte nous avons la
+                    solution.
+                  </Heading>
+                  <Wrap justify="center" margin={5}>
+                    <WrapItem>
+                      <Button
+                        disabled={false}
+                        onClick={() => write?.()}
+                        colorScheme={"green"}
+                        bg={"gray.700"}
+                        rounded={"full"}
+                        px={6}
+                        _hover={{
+                          bg: "green.500",
+                        }}
+                      >
+                        Souscrire
+                      </Button>
+                    </WrapItem>
+                  </Wrap>
+                </Stack>
+              </Stack>
+            </Container>
+          )}
+
+          {currentUser.subscribed && <Subscribe />}
+        </TabPanel>
         <TabPanel>
           <Container
             as={SimpleGrid}
@@ -118,71 +138,12 @@ export default function Subscription() {
                   lineHeight={2}
                   fontSize={{ base: "xl", sm: "2xl", md: "3xl" }}
                 >
-                  Peur de perdre vos accès, n'ayez crainte nous avons la
-                  solution.
+                  Protection de vos avoirs en cas de disparition.
                 </Heading>
-                <Heading
-                  color={"gray.700"}
-                  lineHeight={1}
-                  fontSize={{ base: "l", sm: "xl", md: "2xl" }}
-                >
-                  Déclarez maintenant votre wallet à protéger:
-                </Heading>
-              </Stack>
-              <Box as={"form"} mt={10} w="100%">
-                <Stack spacing={4}>
-                  <Text fontSize={20}>Votre wallet :</Text>
-                  <Input
-                    placeholder="Votre pseudo"
-                    bg={"gray.20"}
-                    border={0}
-                    color={"gray.500"}
-                    _placeholder={{
-                      color: "gray.500",
-                    }}
-                    value={walletToProtect}
-                    onChange={(e) => handleWalletToProtect(e)}
-                  />
-                  <ButtonGroup size="lg" isAttached variant="outline">
-                    <Button bg={"white"} fontWeight={"normal"}>
-                      D'autres wallets ?
-                    </Button>
-                    <IconButton
-                      bg={"white"}
-                      fontSize={40}
-                      aria-label="Add wallets"
-                      icon={<IoIosAddCircle />}
-                    />
-                  </ButtonGroup>
-                  <Divider />
-                  <Text fontSize={20}>Wallets de récupération : </Text>
-                  <Input
-                    placeholder="Votre pseudo"
-                    bg={"gray.20"}
-                    border={0}
-                    color={"gray.500"}
-                    _placeholder={{
-                      color: "gray.500",
-                    }}
-                    value={recoveryWallet1}
-                    onChange={(e) => handleRecoveryWallet1(e)}
-                  />
-                  <Input
-                    placeholder="Votre pseudo"
-                    bg={"gray.20"}
-                    border={0}
-                    color={"gray.500"}
-                    _placeholder={{
-                      color: "gray.500",
-                    }}
-                    value={recoveryWallet2}
-                    onChange={(e) => handleRecoveryWallet2(e)}
-                  />
-                </Stack>
                 <Wrap justify="center" margin={5}>
                   <WrapItem>
                     <Button
-                      disabled={!write}
+                      disabled={true}
                       onClick={() => write?.()}
                       colorScheme={"green"}
                       bg={"gray.700"}
@@ -192,17 +153,13 @@ export default function Subscription() {
                         bg: "green.500",
                       }}
                     >
-                      Valider
+                      Souscrire
                     </Button>
                   </WrapItem>
                 </Wrap>
-              </Box>
-              form
+              </Stack>
             </Stack>
           </Container>
-        </TabPanel>
-        <TabPanel>
-          <p>Bientôt disponible !</p>
         </TabPanel>
       </TabPanels>
     </Tabs>

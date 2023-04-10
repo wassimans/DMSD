@@ -23,7 +23,6 @@ contract DMSD {
     mapping(address => User) public users; // Mapping of user addresses to user structs
     mapping(address => address[]) private _userRecipients; // Mapping of user addresses to recipient addresses
     address public adminAddress; // Address of the admin
-    address public walletToProtect; // Address of the wallet to protect
     address[2] public recoveryWallets; // Array of addresses of the recovery wallets
 
     // We index the userAddresses so clients can quickly filter,
@@ -90,14 +89,13 @@ contract DMSD {
      * @return A boolean indicating whether the personal multisig wallet was successfully created.
      *  @dev The event LogNewPersonalMultisig will be emitted upon successful deployment of the new multisignature wallet contract.
      */
-    function createPersonalMultisig(address[2] memory _recovAddrs, address _walletToProtect)
+    function createPersonalMultisig(address[2] memory _recovAddrs)
         external
         onlyAdmin
         onlySubscribed(msg.sender)
         returns (bool)
     {
         _setRecoveryWallets(_recovAddrs);
-        _setWalletToProtect(_walletToProtect);
         address[] memory owners = new address[](3);
         owners[0] = _recovAddrs[0];
         owners[1] = _recovAddrs[1];
@@ -135,7 +133,7 @@ contract DMSD {
      */
     function transferToMultisig(uint256 _amount) external onlyAdmin onlySubscribed(msg.sender) returns (bool) {
         // Transfer tokens from EOA to multi-sig wallet
-        dToken.approve(address(this), msg.sender.balance);
+        require(dToken.approve(address(this), msg.sender.balance), "DMSD: approve failed");
         return _transferFromToMultisig(_amount);
     }
 
@@ -151,12 +149,12 @@ contract DMSD {
         // Transfer tokens from EOA to multi-sig wallet
         if (_userRecipients[adminAddress].length > 0) {
             require(
-                dToken.transferFrom(msg.sender, address(recipientMultiSig), _amount),
+                dToken.transferFrom(adminAddress, address(recipientMultiSig), _amount),
                 "DMSD: transfer to recipient multisig failed"
             );
         } else {
             require(
-                dToken.transferFrom(msg.sender, address(personalMultiSig), _amount),
+                dToken.transferFrom(adminAddress, address(personalMultiSig), _amount),
                 "DMSD: transfer to personal multisig failed"
             );
         }
@@ -286,13 +284,5 @@ contract DMSD {
 
     function setToken(address _dToken) public {
         dToken = ERC20(_dToken);
-    }
-
-    function _setWalletToProtect(address _walletToProtect) private {
-        walletToProtect = _walletToProtect;
-    }
-
-    function getWalletToProtect() external view returns (address) {
-        return walletToProtect;
     }
 }

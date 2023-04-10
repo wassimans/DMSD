@@ -25,8 +25,8 @@ abstract contract BaseSetup is Test {
     event LogNewRecipientMultisig(address[] indexed owners, uint256 indexed numConfirmationsRequired);
     event Transfer(address indexed from, address indexed to, uint256 value);
 
-    // DAI token address in GOERLI testnet
-    address public constant DAI = 0x001B3B4d0F3714Ca98ba10F6042DaEbF0B1B7b6F;
+    // WMATIC token address in GOERLI testnet
+    address public constant WMATIC = 0x9c3C9283D3e44854697Cd22D3Faa240Cfb032889;
     MultiSigWallet internal recipientWallet;
     MultiSigWallet internal personalWallet;
     Utils internal utils;
@@ -37,7 +37,6 @@ abstract contract BaseSetup is Test {
     User internal recipient3;
     address payable[] internal testUsers;
     address internal testAdminAddress;
-    address internal testAdminWalletToProtect;
     address internal adminRecoveryAddress1;
     address internal adminRecoveryAddress2;
     address internal alice;
@@ -97,8 +96,6 @@ abstract contract BaseSetup is Test {
         vm.label(adminRecoveryAddress1, "RecoveryAddress1");
         adminRecoveryAddress2 = testUsers[2];
         vm.label(adminRecoveryAddress2, "RecoveryAddress2");
-        testAdminWalletToProtect = testUsers[3];
-        vm.label(testAdminWalletToProtect, "AdminWalletToProtect");
 
         alice = testUsers[4];
         vm.label(alice, "Alice");
@@ -126,7 +123,7 @@ contract whenContractIsCreatedTest is BaseSetup {
 
     function setUp() public virtual override {
         BaseSetup.setUp();
-        dmsd.setToken(DAI);
+        dmsd.setToken(WMATIC);
         console.log("When contract is created test");
     }
 
@@ -136,7 +133,7 @@ contract whenContractIsCreatedTest is BaseSetup {
         // check if the contract is deployed
         assertTrue(address(this) != address(0));
         // check if the contract is deployed with the correct MATIC token address
-        assertTrue(address(dmsd.dToken()) == DAI);
+        assertTrue(address(dmsd.dToken()) == WMATIC);
     }
 }
 
@@ -147,7 +144,7 @@ contract registerAdminTest is BaseSetup {
 
     function setUp() public virtual override {
         BaseSetup.setUp();
-        dmsd.setToken(DAI);
+        dmsd.setToken(WMATIC);
         console.log("Register admin test");
     }
 
@@ -203,7 +200,7 @@ contract subscribeAdminTest is BaseSetup {
 
     function setUp() public virtual override {
         BaseSetup.setUp();
-        dmsd.setToken(DAI);
+        dmsd.setToken(WMATIC);
         vm.prank(testAdminAddress);
         dmsd.registerAdmin(admin.email, admin.username);
         console.log("Subscribe admin test");
@@ -274,7 +271,7 @@ contract registerRecipientTest is BaseSetup {
 
     function setUp() public virtual override {
         BaseSetup.setUp();
-        dmsd.setToken(DAI);
+        dmsd.setToken(WMATIC);
         vm.prank(testAdminAddress);
         dmsd.registerAdmin(admin.email, admin.username);
         vm.prank(testAdminAddress);
@@ -333,11 +330,18 @@ contract createPersonalMultisigTest is BaseSetup {
 
     function setUp() public virtual override {
         BaseSetup.setUp();
-        dmsd.setToken(DAI);
+        dmsd.setToken(WMATIC);
         vm.prank(testAdminAddress);
         dmsd.registerAdmin(admin.email, admin.username);
         vm.prank(testAdminAddress);
         dmsd.subscribeAdmin();
+        address[2] memory testPersonalMultisigOwners;
+        testPersonalMultisigOwners[0] = payable(adminRecoveryAddress1);
+        testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
+        console.log("Test create personal multisig");
+        vm.prank(testAdminAddress);
+        dmsd.createPersonalMultisig(testPersonalMultisigOwners);
+        deal(address(dmsd.dToken()), testAdminAddress, 100e18);
         console.log("Create personal multisig test");
     }
 
@@ -348,7 +352,7 @@ contract createPersonalMultisigTest is BaseSetup {
         testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
         console.log("Test create personal multisig");
         vm.prank(testAdminAddress);
-        assertTrue(dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect));
+        assertTrue(dmsd.createPersonalMultisig(testPersonalMultisigOwners));
     }
 
     // function that tests createPersonalMultisig with non admin account
@@ -359,7 +363,7 @@ contract createPersonalMultisigTest is BaseSetup {
         console.log("Test create personal multisig with non admin account");
         vm.startPrank(alice);
         vm.expectRevert(abi.encodePacked("DMSD: You're not the Admin."));
-        dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect);
+        dmsd.createPersonalMultisig(testPersonalMultisigOwners);
     }
 
     // function that tests getRecoveryAddress
@@ -369,21 +373,9 @@ contract createPersonalMultisigTest is BaseSetup {
         testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
         console.log("Test get recovery address");
         vm.prank(testAdminAddress);
-        assertTrue(dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect));
+        assertTrue(dmsd.createPersonalMultisig(testPersonalMultisigOwners));
         vm.prank(testAdminAddress);
         assertTrue(compareArrays(dmsd.getRecoveryWallets(), testPersonalMultisigOwners));
-    }
-
-    // function that tests getRecoveryAddress
-    function testGetAdminWalletToProtect() public {
-        address[2] memory testPersonalMultisigOwners;
-        testPersonalMultisigOwners[0] = payable(adminRecoveryAddress1);
-        testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
-        console.log("Test get wallet to protect address");
-        vm.prank(testAdminAddress);
-        assertTrue(dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect));
-        vm.prank(testAdminAddress);
-        assertTrue(dmsd.getWalletToProtect() == testAdminWalletToProtect);
     }
 
     // fucntion to test LogNewPersonalMultisig event after createRecipientsMultisig
@@ -396,7 +388,23 @@ contract createPersonalMultisigTest is BaseSetup {
         vm.prank(testAdminAddress);
         vm.expectEmit(true, false, false, true);
         emit LogNewPersonalMultisig(testPersonalMultisigOwners);
-        dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect);
+        dmsd.createPersonalMultisig(testPersonalMultisigOwners);
+    }
+
+    // function that tests approveTransfer
+    function testApproveTransfer() public {
+        console.log("Test approve transfer");
+        vm.prank(testAdminAddress);
+        assertTrue(dmsd.dToken().approve(address(dmsd), testAdminAddress.balance));
+    }
+
+    // function that tests transferToMultisig
+    function testTransferToMultisig() public {
+        console.log("Test transfer to multisig");
+        vm.prank(testAdminAddress);
+        dmsd.dToken().approve(address(dmsd), testAdminAddress.balance);
+        vm.prank(testAdminAddress);
+        assertTrue(dmsd.transferToMultisig(10));
     }
 }
 
@@ -406,7 +414,7 @@ contract createRecipientsMultisigTest is BaseSetup {
 
     function setUp() public virtual override {
         BaseSetup.setUp();
-        dmsd.setToken(DAI);
+        dmsd.setToken(WMATIC);
         vm.startPrank(testAdminAddress);
         dmsd.registerAdmin(admin.email, admin.username);
         dmsd.subscribeAdmin();
@@ -440,7 +448,7 @@ contract createRecipientsMultisigTest is BaseSetup {
     function testApproveTransfer() public {
         console.log("Test approve transfer");
         vm.startPrank(testAdminAddress);
-        assertTrue(dmsd.dToken().approve(address(dmsd), testAdminWalletToProtect.balance));
+        assertTrue(dmsd.dToken().approve(address(dmsd), testAdminAddress.balance));
         vm.stopPrank();
     }
 
@@ -448,7 +456,7 @@ contract createRecipientsMultisigTest is BaseSetup {
     function testTransferToMultisig() public {
         console.log("Test transfer to multisig");
         vm.startPrank(testAdminAddress);
-        dmsd.dToken().approve(address(dmsd), testAdminWalletToProtect.balance);
+        dmsd.dToken().approve(address(dmsd), testAdminAddress.balance);
         assertTrue(dmsd.transferToMultisig(10));
         vm.stopPrank();
     }
@@ -460,7 +468,7 @@ contract getUserAtIndexTest is BaseSetup {
 
     function setUp() public virtual override {
         BaseSetup.setUp();
-        dmsd.setToken(DAI);
+        dmsd.setToken(WMATIC);
         vm.prank(testAdminAddress);
         dmsd.registerAdmin(admin.email, admin.username);
         vm.startPrank(testAdminAddress);
@@ -509,7 +517,7 @@ contract DMSDModifiersTest is BaseSetup {
 
     function setUp() public virtual override {
         BaseSetup.setUp();
-        dmsd.setToken(DAI);
+        dmsd.setToken(WMATIC);
         console.log("DMSD modifiers tests");
     }
 
@@ -531,7 +539,7 @@ contract DMSDModifiersTest is BaseSetup {
         testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
         console.log("Test create personal multisig");
         vm.expectRevert(abi.encodePacked("DMSD: User not subscribed to the service."));
-        dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect);
+        dmsd.createPersonalMultisig(testPersonalMultisigOwners);
         vm.stopPrank();
     }
 

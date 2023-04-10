@@ -8,7 +8,7 @@ import {
 } from "@chakra-ui/react";
 import Home from "../Components/home";
 import Subscription from "../Components/subscription";
-import Vault from "../Components/subscription";
+import Vault from "../Components/vault";
 import MobileNav from "../Components/UI/MobileNave";
 import SidebarContent from "../Components/UI/SideBarContent";
 
@@ -38,7 +38,7 @@ export default function DMSD() {
           logout: false,
         });
         break;
-      case "Vault":
+      case "Vault MultiSig":
         setActivePage({
           home: false,
           subscription: false,

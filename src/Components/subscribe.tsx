@@ -1,59 +1,73 @@
 import { useDmsdApp } from "@/contexts/DmsdContext";
-import { useDmsdRegisterAdmin, usePrepareDmsdRegisterAdmin } from "@/generated";
+import {
+  useDmsdCreatePersonalMultisig,
+  usePrepareDmsdCreatePersonalMultisig,
+} from "@/generated";
 import {
   Box,
-  Stack,
-  Heading,
-  Text,
-  Container,
-  Input,
   Button,
+  Container,
+  Heading,
+  Input,
   SimpleGrid,
+  Stack,
+  Text,
   Wrap,
   WrapItem,
+  ButtonGroup,
+  IconButton,
+  Divider,
 } from "@chakra-ui/react";
 import { BigNumber } from "ethers";
-import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
+import { IoIosAddCircle } from "react-icons/io";
 import { useWaitForTransaction } from "wagmi";
 
-export default function Signup() {
-  const router = useRouter();
+export default function Subscribe() {
   const {
-    state: { contractAddress, userAddress },
+    state: { contractAddress, userAddress, currentUser },
   } = useDmsdApp();
 
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
+  const [recoveryWallet1, setRecoveryWallet1] = useState("0x" as `0x${string}`);
+  const [recoveryWallet2, setRecoveryWallet2] = useState("0x" as `0x${string}`);
 
-  const debouncedUsername = useDebounce(username, 500);
-  const debouncedEmail = useDebounce(email, 500);
+  const debouncedRecoveryWallet1 = useDebounce(recoveryWallet1, 500);
+  const debouncedRecoveryWallet2 = useDebounce(recoveryWallet2, 500);
 
-  const handleUsername = (e: any) => {
+  const recoveryWallets: [`0x${string}`, `0x${string}`] = [
+    debouncedRecoveryWallet1,
+    debouncedRecoveryWallet2,
+  ];
+
+  const handleRecoveryWallet1 = (e: any) => {
     e.preventDefault();
-    setUsername(e.target.value);
+    setRecoveryWallet1(e.target.value);
   };
 
-  const handleEmail = (e: any) => {
+  const handleRecoveryWallet2 = (e: any) => {
     e.preventDefault();
-    setEmail(e.target.value);
+    setRecoveryWallet2(e.target.value);
   };
 
-  const { config } = usePrepareDmsdRegisterAdmin({
+  const { config } = usePrepareDmsdCreatePersonalMultisig({
     address: contractAddress,
-    args: [debouncedUsername, debouncedEmail],
-    // overrides: { from: userAddress, gasLimit: BigNumber.from("1000000") },
+    args: [recoveryWallets],
     overrides: { from: userAddress },
     chainId: 80001,
   });
 
-  const { data, write } = useDmsdRegisterAdmin({
+  const { data, write } = useDmsdCreatePersonalMultisig({
     ...config,
   });
 
+  const reInitFields = () => {
+    setRecoveryWallet1("0x" as `0x${string}`);
+    setRecoveryWallet2("0x" as `0x${string}`);
+  };
+
   useWaitForTransaction({
     hash: data?.hash,
-    onSuccess: () => router.push("/dmsd"),
+    onSuccess: () => reInitFields(),
   });
 
   return (
@@ -75,14 +89,16 @@ export default function Signup() {
         <Stack spacing={4}>
           <Heading
             color={"gray.700"}
-            lineHeight={1.1}
-            fontSize={{ base: "2xl", sm: "3xl", md: "4xl" }}
+            lineHeight={1}
+            fontSize={{ base: "l", sm: "xl", md: "2xl" }}
           >
-            Inscription
+            Votre wallet à protéger sera celle avec laquelle vous vous connectez
           </Heading>
         </Stack>
         <Box as={"form"} mt={10} w="100%">
           <Stack spacing={4}>
+            <Divider />
+            <Text fontSize={20}>Wallets de récupération : </Text>
             <Input
               placeholder="Votre pseudo"
               bg={"gray.20"}
@@ -91,36 +107,20 @@ export default function Signup() {
               _placeholder={{
                 color: "gray.500",
               }}
-              value={username}
-              onChange={(e) => {
-                handleUsername(e);
-              }}
+              value={recoveryWallet1}
+              onChange={(e) => handleRecoveryWallet1(e)}
             />
             <Input
-              placeholder="email"
-              type="email"
+              placeholder="Votre pseudo"
               bg={"gray.20"}
               border={0}
               color={"gray.500"}
               _placeholder={{
                 color: "gray.500",
               }}
-              value={email}
-              onChange={(e) => {
-                handleEmail(e);
-              }}
+              value={recoveryWallet2}
+              onChange={(e) => handleRecoveryWallet2(e)}
             />
-            <Text
-              as={"span"}
-              color={"gray.700"}
-              lineHeight={1}
-              fontSize={{ base: "l", sm: "xl", md: "2xl" }}
-              _placeholder={{
-                color: "gray.500",
-              }}
-            >
-              Finalisez votre inscription
-            </Text>
           </Stack>
           <Wrap justify="center" margin={5}>
             <WrapItem>
