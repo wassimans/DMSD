@@ -14,11 +14,13 @@ abstract contract BaseSetup is Test {
         bool isRegistered;
         bool isAdmin;
         bool withRecipients;
+        bool subscribed;
         uint256 index;
     }
 
     event LogNewUser(address indexed userAddress, uint256 index, string email);
     event LogDeleteUser(address indexed userAddress, uint256 index, string email);
+    event LogNewSubscription(address indexed userAddress);
     event LogNewPersonalMultisig(address[2] indexed recoveryWallets);
     event LogNewRecipientMultisig(address[] indexed owners, uint256 indexed numConfirmationsRequired);
     event Transfer(address indexed from, address indexed to, uint256 value);
@@ -56,6 +58,7 @@ abstract contract BaseSetup is Test {
             isRegistered: false,
             isAdmin: true,
             withRecipients: false,
+            subscribed: false,
             index: 1
         });
 
@@ -66,6 +69,7 @@ abstract contract BaseSetup is Test {
             isRegistered: false,
             isAdmin: true,
             withRecipients: false,
+            subscribed: false,
             index: 2
         });
         recipient2 = User({
@@ -74,6 +78,7 @@ abstract contract BaseSetup is Test {
             isRegistered: false,
             isAdmin: true,
             withRecipients: false,
+            subscribed: false,
             index: 3
         });
         recipient3 = User({
@@ -82,6 +87,7 @@ abstract contract BaseSetup is Test {
             isRegistered: false,
             isAdmin: true,
             withRecipients: false,
+            subscribed: false,
             index: 4
         });
 
@@ -159,14 +165,22 @@ contract registerAdminTest is BaseSetup {
         console.log("Test register admin and check fields");
         vm.prank(testAdminAddress);
         dmsd.registerAdmin(admin.email, admin.username);
-        (string memory userEmail, string memory username, bool isAdmin, bool isRegistered, bool withRecipients) =
-            dmsd.getUser(testAdminAddress);
+        (
+            string memory userEmail,
+            string memory username,
+            bool isAdmin,
+            bool isRegistered,
+            bool withRecipients,
+            bool subscribed
+        ) = dmsd.getUser(testAdminAddress);
         // check if the admin is registered
         assertTrue(isRegistered);
         // check if the admin is an admin
         assertTrue(isAdmin);
         // check if the admin has no recipients
         assertTrue(!withRecipients);
+        // check if the admin is subscribed
+        assertTrue(!subscribed);
         // check if the admin has the correct email
         assertTrue(keccak256(abi.encodePacked(userEmail)) == keccak256(abi.encodePacked(admin.email)));
         // check if the admin has the correct first name
@@ -179,6 +193,76 @@ contract registerAdminTest is BaseSetup {
         vm.prank(alice);
         dmsd.registerAdmin(recipient1.email, recipient1.username);
         assertTrue(dmsd.adminAddress() == alice);
+    }
+}
+
+// a test contract that inherits from BaseSetup and which tests the subscribeAdmin function
+contract subscribeAdminTest is BaseSetup {
+    DMSD dmsd = new DMSD();
+    bool adminSubscribed;
+
+    function setUp() public virtual override {
+        BaseSetup.setUp();
+        dmsd.setToken(DAI);
+        vm.prank(testAdminAddress);
+        dmsd.registerAdmin(admin.email, admin.username);
+        console.log("Subscribe admin test");
+    }
+
+    // function that tests subscribeAdmin
+    function testSubscribeAdmin() public {
+        console.log("Test subscribe admin");
+        vm.prank(testAdminAddress);
+        adminSubscribed = dmsd.subscribeAdmin();
+        // check if the admin is subscribed
+        assertTrue(adminSubscribed);
+    }
+
+    // function that tests subscribeAdmin and cheks all fields are set correctly
+    function testSubscribeAdminAndCheckFields() public {
+        console.log("Test subscribe admin and check fields");
+        vm.prank(testAdminAddress);
+        dmsd.subscribeAdmin();
+        (
+            string memory userEmail,
+            string memory username,
+            bool isAdmin,
+            bool isRegistered,
+            bool withRecipients,
+            bool subscribed
+        ) = dmsd.getUser(testAdminAddress);
+        // check if the admin is registered
+        assertTrue(isRegistered);
+        // check if the admin is an admin
+        assertTrue(isAdmin);
+        // check if the admin has no recipients
+        assertTrue(!withRecipients);
+        // check if the admin is subscribed
+        assertTrue(subscribed);
+        // check if the admin has the correct email
+        assertTrue(keccak256(abi.encodePacked(userEmail)) == keccak256(abi.encodePacked(admin.email)));
+        // check if the admin has the correct first name
+        assertTrue(keccak256(abi.encodePacked(username)) == keccak256(abi.encodePacked(admin.username)));
+    }
+
+    // function that tests subscribeAdmin and checks if the admin is already subscribed
+    function testSubscribeAdminAndCheckIfAlreadySubscribed() public {
+        console.log("Test subscribe admin and check if already subscribed");
+        vm.prank(testAdminAddress);
+        dmsd.subscribeAdmin();
+        // check if the admin is already subscribed
+        vm.expectRevert(abi.encodePacked("DMSD: User already subscribed to the service."));
+        vm.prank(testAdminAddress);
+        dmsd.subscribeAdmin();
+    }
+
+    // function to test event emitted LogNewSubscription event after an admin had subscribed
+    function testSubscribeAdminAndCheckEvent() public {
+        console.log("Test subscribe admin and check event");
+        vm.prank(testAdminAddress);
+        vm.expectEmit(true, false, false, false);
+        emit LogNewSubscription(testAdminAddress);
+        dmsd.subscribeAdmin();
     }
 }
 
@@ -208,14 +292,22 @@ contract registerRecipientTest is BaseSetup {
     // function that tests registerRecipient and cheks all fields are set correctly
     function testRegisterRecipientAndCheckFields() public {
         console.log("Test register recipient and check fields");
-        (string memory userEmail, string memory username, bool isAdmin, bool isRegistered, bool withRecipients) =
-            dmsd.getUser(alice);
+        (
+            string memory userEmail,
+            string memory username,
+            bool isAdmin,
+            bool isRegistered,
+            bool withRecipients,
+            bool subscribed
+        ) = dmsd.getUser(alice);
         // check if the admin is registered
         assertTrue(isRegistered);
         // check if the admin is an admin
         assertTrue(!isAdmin);
         // check if the admin has no recipients
         assertTrue(!withRecipients);
+        // check if the admin is subscribed
+        assertTrue(!subscribed);
         // check if the admin has the correct email
         assertTrue(keccak256(abi.encodePacked(userEmail)) == keccak256(abi.encodePacked(recipient1.email)));
         // check if the admin has the correct first name
@@ -244,6 +336,8 @@ contract createPersonalMultisigTest is BaseSetup {
         dmsd.setToken(DAI);
         vm.prank(testAdminAddress);
         dmsd.registerAdmin(admin.email, admin.username);
+        vm.prank(testAdminAddress);
+        dmsd.subscribeAdmin();
         console.log("Create personal multisig test");
     }
 
@@ -315,6 +409,7 @@ contract createRecipientsMultisigTest is BaseSetup {
         dmsd.setToken(DAI);
         vm.startPrank(testAdminAddress);
         dmsd.registerAdmin(admin.email, admin.username);
+        dmsd.subscribeAdmin();
         dmsd.registerRecipient(alice, recipient1.email, recipient1.username);
         dmsd.registerRecipient(bob, recipient2.email, recipient2.username);
         dmsd.registerRecipient(charlie, recipient3.email, recipient3.username);
@@ -385,14 +480,22 @@ contract getUserAtIndexTest is BaseSetup {
     function testGetUser() public {
         console.log("Test get user");
         vm.prank(testAdminAddress);
-        (string memory userEmail, string memory username, bool isAdmin, bool isRegistered, bool withRecipients) =
-            dmsd.getUser(alice);
+        (
+            string memory userEmail,
+            string memory username,
+            bool isAdmin,
+            bool isRegistered,
+            bool withRecipients,
+            bool subscribed
+        ) = dmsd.getUser(alice);
         // check if the admin is registered
         assertTrue(isRegistered);
         // check if the admin is an admin
         assertTrue(!isAdmin);
         // check if the admin has no recipients
         assertTrue(!withRecipients);
+        // check if the admin is subscribed
+        assertTrue(!subscribed);
         // check if the admin has the correct email
         assertTrue(keccak256(abi.encodePacked(userEmail)) == keccak256(abi.encodePacked(recipient1.email)));
         // check if the admin has the correct first name
@@ -416,6 +519,20 @@ contract DMSDModifiersTest is BaseSetup {
         vm.startPrank(alice);
         vm.expectRevert(abi.encodePacked("DMSD: You're not the Admin."));
         dmsd.registerRecipient(alice, recipient1.email, recipient1.username);
+    }
+
+    // function that tests onlySubscribed modifier
+    function testOnlySubscribed() public {
+        console.log("Test only subscribed");
+        vm.startPrank(testAdminAddress);
+        dmsd.registerAdmin(admin.email, admin.username);
+        address[2] memory testPersonalMultisigOwners;
+        testPersonalMultisigOwners[0] = payable(adminRecoveryAddress1);
+        testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
+        console.log("Test create personal multisig");
+        vm.expectRevert(abi.encodePacked("DMSD: User not subscribed to the service."));
+        dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect);
+        vm.stopPrank();
     }
 
     // function that tests onlyRecipient modifier

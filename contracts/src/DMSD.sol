@@ -11,6 +11,7 @@ contract DMSD {
         bool isRegistered;
         bool isAdmin;
         bool withRecipients;
+        bool subscribed;
         uint256 index;
     }
 
@@ -28,6 +29,7 @@ contract DMSD {
     // We index the userAddresses so clients can quickly filter,
     // sort and find relevant information in the event logs
     event LogNewUser(address indexed userAddress, uint256 index, string email);
+    event LogNewSubscription(address indexed userAddress);
     event LogDeleteUser(address indexed userAddress, uint256 index, string email);
     event LogNewPersonalMultisig(address[2] indexed recoveryWallets);
     event LogNewRecipientMultisig(address[] indexed owners, uint256 indexed numConfirmationsRequired);
@@ -61,9 +63,26 @@ contract DMSD {
         _;
     }
 
+    modifier onlySubscribed(address _userAddress) {
+        require(users[_userAddress].subscribed, "DMSD: User not subscribed to the service.");
+        _;
+    }
+
     //////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////// Business logic //////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
+
+    /**
+     * @notice Allows an admin to subscribe to the service.
+     * @dev This function can only be called by an admin and sets the `subscribed` flag to `true` for the caller.
+     * @return A boolean indicating whether the subscription was successful.
+     */
+    function subscribeAdmin() external onlyAdmin returns (bool) {
+        require(!users[msg.sender].subscribed, "DMSD: User already subscribed to the service.");
+        users[msg.sender].subscribed = true;
+        emit LogNewSubscription(msg.sender);
+        return true;
+    }
 
     /**
      * @dev Creates a new personal multisig wallet contract with the recovery addresses and the contract itself as owners.
@@ -74,6 +93,7 @@ contract DMSD {
     function createPersonalMultisig(address[2] memory _recovAddrs, address _walletToProtect)
         external
         onlyAdmin
+        onlySubscribed(msg.sender)
         returns (bool)
     {
         _setRecoveryWallets(_recovAddrs);
@@ -98,6 +118,7 @@ contract DMSD {
     function createRecipientsMultisig(address[] memory _owners, uint256 _numConfirmationsRequired)
         external
         onlyAdmin
+        onlySubscribed(msg.sender)
         returns (bool)
     {
         recipientMultiSig = new MultiSigWallet(_owners, _numConfirmationsRequired);
@@ -112,7 +133,7 @@ contract DMSD {
      * @param _amount The amount of tokens to transfer.
      * @return A boolean indicating whether the transfer was successful.
      */
-    function transferToMultisig(uint256 _amount) external onlyAdmin returns (bool) {
+    function transferToMultisig(uint256 _amount) external onlyAdmin onlySubscribed(msg.sender) returns (bool) {
         // Transfer tokens from EOA to multi-sig wallet
         dToken.approve(address(this), msg.sender.balance);
         return _transferFromToMultisig(_amount);
@@ -169,6 +190,7 @@ contract DMSD {
         users[msg.sender].isRegistered = true;
         users[msg.sender].isAdmin = true;
         users[msg.sender].withRecipients = false;
+        users[msg.sender].subscribed = false;
         userIndex.push(msg.sender);
         users[msg.sender].index = userIndex.length;
         emit LogNewUser(msg.sender, userIndex.length, _userEmail);
@@ -194,6 +216,7 @@ contract DMSD {
         users[_userAddress].isRegistered = true;
         users[_userAddress].isAdmin = false;
         users[msg.sender].withRecipients = false;
+        users[_userAddress].subscribed = false;
         userIndex.push(_userAddress);
         users[_userAddress].index = userIndex.length;
         _userRecipients[msg.sender].push(_userAddress);
@@ -225,14 +248,22 @@ contract DMSD {
         view
         usersNotEmpty
         isUser(_userAddress)
-        returns (string memory userEmail, string memory username, bool isAdmin, bool isRegistered, bool withRecipients)
+        returns (
+            string memory userEmail,
+            string memory username,
+            bool isAdmin,
+            bool isRegistered,
+            bool withRecipients,
+            bool subscribed
+        )
     {
         return (
             users[_userAddress].email,
             users[_userAddress].username,
             users[_userAddress].isAdmin,
             users[_userAddress].isRegistered,
-            users[_userAddress].withRecipients
+            users[_userAddress].withRecipients,
+            users[_userAddress].subscribed
         );
     }
 
