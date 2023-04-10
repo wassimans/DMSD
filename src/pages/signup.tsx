@@ -144,7 +144,6 @@ export default function Signup() {
   );
 }
 
-// create a hook to debounce the value
 function useDebounce(value: any, delay: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
 

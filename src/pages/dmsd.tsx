@@ -8,7 +8,7 @@ import {
 } from "@chakra-ui/react";
 import Home from "../Components/home";
 import Subscription from "../Components/subscription";
-import Wallets from "../Components/wallets";
+import Vault from "../Components/subscription";
 import MobileNav from "../Components/UI/MobileNave";
 import SidebarContent from "../Components/UI/SideBarContent";
 
@@ -16,7 +16,7 @@ export default function DMSD() {
   const [activePage, setActivePage] = useState({
     home: true,
     subscription: false,
-    wallets: false,
+    vault: false,
     logout: false,
   });
 
@@ -26,7 +26,7 @@ export default function DMSD() {
         setActivePage({
           home: true,
           subscription: false,
-          wallets: false,
+          vault: false,
           logout: false,
         });
         break;
@@ -34,15 +34,15 @@ export default function DMSD() {
         setActivePage({
           home: false,
           subscription: true,
-          wallets: false,
+          vault: false,
           logout: false,
         });
         break;
-      case "Wallets":
+      case "Vault":
         setActivePage({
           home: false,
           subscription: false,
-          wallets: true,
+          vault: true,
           logout: false,
         });
         break;
@@ -79,7 +79,7 @@ export default function DMSD() {
       <Box ml={{ base: 0, md: 60 }} p="4">
         {activePage.home && <Home />}
         {activePage.subscription && <Subscription />}
-        {activePage.wallets && <Wallets />}
+        {activePage.vault && <Vault />}
       </Box>
     </Box>
   );

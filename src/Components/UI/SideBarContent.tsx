@@ -7,13 +7,14 @@ import {
   BoxProps,
 } from "@chakra-ui/react";
 import { FiHome } from "react-icons/fi";
-import { SlLogout, SlWallet } from "react-icons/sl";
+import { SlLogout } from "react-icons/sl";
 import { MdAccountBalance } from "react-icons/md";
 import { IconType } from "react-icons";
 import { useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import NavItem from "./NavItem";
+import { BsSafe } from "react-icons/bs";
 
 interface LinkItemProps {
   name: string;
@@ -22,7 +23,7 @@ interface LinkItemProps {
 const LinkItems: Array<LinkItemProps> = [
   { name: "Accueil", icon: FiHome },
   { name: "Souscriptions", icon: MdAccountBalance },
-  { name: "Wallets", icon: SlWallet },
+  { name: "Vault", icon: BsSafe },
 ];
 
 interface SidebarProps extends BoxProps {
@@ -35,11 +36,9 @@ export default function SideBarContent({
   change,
   ...rest
 }: SidebarProps) {
-  const router = useRouter();
-  const { data: session, status, update } = useSession();
   const [focusHome, setFocusHome] = useState(false);
   const [focusSubscription, setFocusSubscription] = useState(false);
-  const [focusWallets, setFocusWallets] = useState(false);
+  const [focusVault, setFocusVault] = useState(false);
 
   const handleActivePage = (name: string) => {
     change(name);
@@ -47,17 +46,17 @@ export default function SideBarContent({
       case "Accueil":
         setFocusHome(true);
         setFocusSubscription(false);
-        setFocusWallets(false);
+        setFocusVault(false);
         break;
       case "Souscriptions":
         setFocusHome(false);
         setFocusSubscription(true);
-        setFocusWallets(false);
+        setFocusVault(false);
         break;
-      case "Wallets":
+      case "Vault":
         setFocusHome(false);
         setFocusSubscription(false);
-        setFocusWallets(true);
+        setFocusVault(true);
         break;
       case "Déconnexion":
         signOut({ redirect: true });
@@ -71,8 +70,8 @@ export default function SideBarContent({
         return focusHome;
       case "Souscriptions":
         return focusSubscription;
-      case "Wallets":
-        return focusWallets;
+      case "Vault":
+        return focusVault;
       default:
         return false;
     }

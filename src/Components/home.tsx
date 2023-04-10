@@ -1,11 +1,13 @@
 import { useDmsdApp } from "@/contexts/DmsdContext";
+import { useDmsdGetRecoveryWallets, useDmsdGetUser } from "@/generated";
 import {
-  useDmsdGetUser,
-  useDmsdGetUserAtIndex,
-  useDmsdRead,
-} from "@/generated";
-import { BigNumber } from "ethers";
-import { signOut, useSession } from "next-auth/react";
+  TableContainer,
+  Table,
+  Tr,
+  Th,
+  Tfoot,
+  Heading,
+} from "@chakra-ui/react";
 import { useAccount } from "wagmi";
 
 export default function Home() {
@@ -14,20 +16,67 @@ export default function Home() {
   } = useDmsdApp();
   const { address } = useAccount();
 
-  const { data } = useDmsdGetUser({
+  const { data: userData } = useDmsdGetUser({
     address: contractAddress,
     args: [address!],
   });
 
-  console.log(data);
+  const { data: recoveryWallets } = useDmsdGetRecoveryWallets({
+    address: contractAddress,
+    overrides: { from: address! },
+  });
 
   return (
     <>
-      <div>{data?.[0]}</div>
-      <div>{data?.[1]}</div>
-      <div>{data?.[2]}</div>
-      <div>{data?.[3]}</div>
-      <div>{data?.[4]}</div>
+      <Heading
+        color={"gray.700"}
+        lineHeight={2}
+        fontSize={{ base: "xl", sm: "2xl", md: "3xl" }}
+      >
+        Récapitulatif
+      </Heading>
+      <TableContainer>
+        <Table variant="striped" colorScheme="green.500">
+          <Tfoot>
+            <Tr>
+              <Th fontSize={"l"}>Pseudo</Th>
+              <Th>{userData?.[1]}</Th>
+            </Tr>
+            <Tr>
+              <Th fontSize={"l"}>Email</Th>
+              <Th>{userData?.[0]}</Th>
+            </Tr>
+            <Tr>
+              <Th fontSize={"l"}>Vos wallets protégés</Th>
+
+              <Th>
+                {recoveryWallets?.[0] !==
+                ("0x0000000000000000000000000000000000000000" as `0x${string}`)
+                  ? recoveryWallets?.[0]
+                  : "N/A"}
+              </Th>
+            </Tr>
+            <Tr>
+              <Th></Th>
+              <Th>
+                {recoveryWallets?.[1] !==
+                ("0x0000000000000000000000000000000000000000" as `0x${string}`)
+                  ? recoveryWallets?.[1]
+                  : "N/A"}
+              </Th>
+            </Tr>
+            <Tr>
+              <Th fontSize={"l"}>Services souscrits</Th>
+              <Th>
+                {recoveryWallets?.[0] !==
+                ("0x0000000000000000000000000000000000000000" as `0x${string}`)
+                  ? "Récupération des avoirs en cas de pertes des accès"
+                  : "N/A"}
+              </Th>
+            </Tr>
+          </Tfoot>
+        </Table>
+      </TableContainer>
     </>
   );
 }
