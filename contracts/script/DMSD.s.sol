@@ -5,8 +5,8 @@ import "forge-std/Script.sol";
 import "../src/DMSD.sol";
 
 contract DMSDScript is Script {
-    // DAI token address in MUMBAI testnet
-    address public constant DAI = 0x001B3B4d0F3714Ca98ba10F6042DaEbF0B1B7b6F;
+    // WMATIC token address in MUMBAI testnet
+    address public constant WMATIC = 0x9c3C9283D3e44854697Cd22D3Faa240Cfb032889;
 
     /// @notice The main script entrypoint
     function run() external {
@@ -15,8 +15,8 @@ contract DMSDScript is Script {
         vm.startBroadcast();
         // Create a new DMSD contract
         DMSD dmsd = new DMSD();
-        // Set the dToken address to DAI on Goerli testnet
-        dmsd.setToken(DAI);
+        // Set the dToken address to WMATIC on Goerli testnet
+        dmsd.setToken(WMATIC);
 
         vm.stopBroadcast();
     }
