@@ -20,7 +20,7 @@ const actions = {
 };
 
 const initialState: State = {
-  contractAddress: "0x65aCd2dD683E6F3E803393CD6A75782Ab806A447",
+  contractAddress: "0xa154633aC81a12CA9B879008d6525E14E3Bb6184",
   userAddress: undefined,
   currentUser: undefined,
   vaultApproved: false,
