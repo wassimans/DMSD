@@ -204,14 +204,6 @@ contract DMSD {
         return true;
     }
 
-    /// @notice Gets the address of the user at the given index in the `userIndex` array.
-    /// @dev This function can be used to retrieve the addresses of all registered users.
-    /// @param index The index of the user in the `userIndex` array.
-    /// @return userAddress The address of the user at the given index.
-    function getUserAtIndex(uint256 index) external view returns (address userAddress) {
-        return userIndex[index];
-    }
-
     /**
      * @dev Returns the email, username and admin status of a registered user.
      *

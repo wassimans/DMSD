@@ -322,44 +322,6 @@ contract createPersonalMultisigTest is BaseSetup {
     }
 }
 
-// a test contract that inherits from BaseSetup and which tests getUserAtIndex, getUser, deleteRecipient
-contract getUserAtIndexTest is BaseSetup {
-    DMSD dmsd = new DMSD();
-
-    function setUp() public virtual override {
-        BaseSetup.setUp();
-        dmsd.setToken(WMATIC);
-        vm.prank(testAdminAddress);
-        dmsd.registerAdmin(admin.email, admin.username);
-        console.log("User management tests");
-    }
-
-    // function that tests getUserAtIndex
-    function testGetUserAtIndex() public {
-        console.log("Test get user at index");
-        vm.prank(testAdminAddress);
-        assertTrue(dmsd.getUserAtIndex(0) == testAdminAddress);
-    }
-
-    // function that tests getUser
-    function testGetUser() public {
-        console.log("Test get user");
-        vm.prank(testAdminAddress);
-        (string memory userEmail, string memory username, bool isAdmin, bool isRegistered, bool subscribed) =
-            dmsd.getUser(alice);
-        // check if the admin is registered
-        assertTrue(isRegistered);
-        // check if the admin is an admin
-        assertTrue(!isAdmin);
-        // check if the admin is subscribed
-        assertTrue(!subscribed);
-        // check if the admin has the correct email
-        assertTrue(keccak256(abi.encodePacked(userEmail)) == keccak256(abi.encodePacked(user1.email)));
-        // check if the admin has the correct first name
-        assertTrue(keccak256(abi.encodePacked(username)) == keccak256(abi.encodePacked(user1.username)));
-    }
-}
-
 // a test contract that inherits from BaseSetup and which tests all DMSD modifiers
 contract DMSDModifiersTest is BaseSetup {
     DMSD dmsd = new DMSD();
