@@ -7,7 +7,7 @@ import {
   BoxProps,
 } from "@chakra-ui/react";
 import { SiVault } from "react-icons/si";
-import { SlLogout } from "react-icons/sl";
+import { FaCheckDouble } from "react-icons/fa";
 import { AiFillHome } from "react-icons/ai";
 import { RiServiceFill, RiLogoutBoxFill } from "react-icons/ri";
 import { IconType } from "react-icons";
@@ -28,16 +28,19 @@ const LinkItems: Array<LinkItemProps> = [
 interface SidebarProps extends BoxProps {
   onClose: () => void;
   change: (name: string) => void;
+  isWalletToProtect: boolean;
 }
 
 export default function SideBarContent({
   onClose,
   change,
+  isWalletToProtect,
   ...rest
 }: SidebarProps) {
   const [focusHome, setFocusHome] = useState(false);
   const [focusSubscription, setFocusSubscription] = useState(false);
   const [focusVault, setFocusVault] = useState(false);
+  const [focusApprove, setFocusApprove] = useState(false);
 
   const handleActivePage = (name: string) => {
     change(name);
@@ -46,16 +49,25 @@ export default function SideBarContent({
         setFocusHome(true);
         setFocusSubscription(false);
         setFocusVault(false);
+        setFocusApprove(false);
         break;
       case "Souscriptions":
         setFocusHome(false);
         setFocusSubscription(true);
         setFocusVault(false);
+        setFocusApprove(false);
         break;
       case "Vault MultiSig":
         setFocusHome(false);
         setFocusSubscription(false);
         setFocusVault(true);
+        setFocusApprove(false);
+        break;
+      case "Approve":
+        setFocusHome(false);
+        setFocusSubscription(false);
+        setFocusVault(false);
+        setFocusApprove(true);
         break;
       case "Déconnexion":
         signOut({ redirect: true });
@@ -71,6 +83,8 @@ export default function SideBarContent({
         return focusSubscription;
       case "Vault MultiSig":
         return focusVault;
+      case "Approve":
+        return focusApprove;
       default:
         return false;
     }
@@ -91,16 +105,30 @@ export default function SideBarContent({
         </Text>
         <CloseButton display={{ base: "flex", md: "none" }} onClick={onClose} />
       </Flex>
-      {LinkItems.map((link) => (
+      {isWalletToProtect && (
+        <>
+          {LinkItems.map((link) => (
+            <NavItem
+              key={link.name}
+              icon={link.icon}
+              focusItem={resolveFocus(link.name)}
+              onClick={() => handleActivePage(link.name)}
+            >
+              {link.name}
+            </NavItem>
+          ))}
+        </>
+      )}
+      {!isWalletToProtect && (
         <NavItem
-          key={link.name}
-          icon={link.icon}
-          focusItem={resolveFocus(link.name)}
-          onClick={() => handleActivePage(link.name)}
+          key="Approve"
+          icon={FaCheckDouble}
+          focusItem={resolveFocus("Approve")}
+          onClick={() => handleActivePage("Approve")}
         >
-          {link.name}
+          Approve
         </NavItem>
-      ))}
+      )}
       <NavItem
         key="Déconnexion"
         icon={RiLogoutBoxFill}

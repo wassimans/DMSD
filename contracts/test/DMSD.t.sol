@@ -13,7 +13,6 @@ abstract contract BaseSetup is Test {
         string username;
         bool isRegistered;
         bool isAdmin;
-        bool withRecipients;
         bool subscribed;
         uint256 index;
     }
@@ -27,16 +26,16 @@ abstract contract BaseSetup is Test {
 
     // WMATIC token address in GOERLI testnet
     address public constant WMATIC = 0x9c3C9283D3e44854697Cd22D3Faa240Cfb032889;
-    MultiSigWallet internal recipientWallet;
     MultiSigWallet internal personalWallet;
     Utils internal utils;
 
     User internal admin;
-    User internal recipient1;
-    User internal recipient2;
-    User internal recipient3;
+    User internal user2;
+    User internal user3;
+    User internal user1;
     address payable[] internal testUsers;
     address internal testAdminAddress;
+    address internal testAdminWalletToProtect;
     address internal adminRecoveryAddress1;
     address internal adminRecoveryAddress2;
     address internal alice;
@@ -56,36 +55,32 @@ abstract contract BaseSetup is Test {
             username: "Admin",
             isRegistered: false,
             isAdmin: true,
-            withRecipients: false,
             subscribed: false,
             index: 1
         });
 
         // create sample recipent accounts
-        recipient1 = User({
+        user1 = User({
             email: "alice@toto.com",
             username: "Alice",
             isRegistered: false,
             isAdmin: true,
-            withRecipients: false,
             subscribed: false,
             index: 2
         });
-        recipient2 = User({
+        user2 = User({
             email: "bob@toto.com",
             username: "Bob",
             isRegistered: false,
             isAdmin: true,
-            withRecipients: false,
             subscribed: false,
             index: 3
         });
-        recipient3 = User({
+        user3 = User({
             email: "charlie@toto.com",
             username: "Charlie",
             isRegistered: false,
             isAdmin: true,
-            withRecipients: false,
             subscribed: false,
             index: 4
         });
@@ -96,6 +91,8 @@ abstract contract BaseSetup is Test {
         vm.label(adminRecoveryAddress1, "RecoveryAddress1");
         adminRecoveryAddress2 = testUsers[2];
         vm.label(adminRecoveryAddress2, "RecoveryAddress2");
+        testAdminWalletToProtect = testUsers[3];
+        vm.label(testAdminWalletToProtect, "AdminWalletToProtect");
 
         alice = testUsers[4];
         vm.label(alice, "Alice");
@@ -105,13 +102,6 @@ abstract contract BaseSetup is Test {
         vm.label(charlie, "Charlie");
         sybil = testUsers[7];
         vm.label(sybil, "Sybil");
-        recipientMultisigOwners = new address[](3);
-        recipientMultisigOwners[0] = payable(alice);
-        recipientMultisigOwners[1] = payable(bob);
-        recipientMultisigOwners[2] = payable(charlie);
-        recipientWallet = new MultiSigWallet(recipientMultisigOwners, 2);
-        // fund the wallet contract with 1 ether for gas consumption
-        vm.deal(address(recipientWallet), 1 ether);
         // fund the test contract with 100 ether
         vm.deal(address(this), 1 ether);
     }
@@ -133,7 +123,7 @@ contract whenContractIsCreatedTest is BaseSetup {
         // check if the contract is deployed
         assertTrue(address(this) != address(0));
         // check if the contract is deployed with the correct MATIC token address
-        assertTrue(address(dmsd.dToken()) == WMATIC);
+        assertTrue(address(dmsd.wmatic()) == WMATIC);
     }
 }
 
@@ -162,20 +152,12 @@ contract registerAdminTest is BaseSetup {
         console.log("Test register admin and check fields");
         vm.prank(testAdminAddress);
         dmsd.registerAdmin(admin.email, admin.username);
-        (
-            string memory userEmail,
-            string memory username,
-            bool isAdmin,
-            bool isRegistered,
-            bool withRecipients,
-            bool subscribed
-        ) = dmsd.getUser(testAdminAddress);
+        (string memory userEmail, string memory username, bool isAdmin, bool isRegistered, bool subscribed) =
+            dmsd.getUser(testAdminAddress);
         // check if the admin is registered
         assertTrue(isRegistered);
         // check if the admin is an admin
         assertTrue(isAdmin);
-        // check if the admin has no recipients
-        assertTrue(!withRecipients);
         // check if the admin is subscribed
         assertTrue(!subscribed);
         // check if the admin has the correct email
@@ -188,7 +170,7 @@ contract registerAdminTest is BaseSetup {
     function testSetAdminAddress() public {
         console.log("Test set admin address");
         vm.prank(alice);
-        dmsd.registerAdmin(recipient1.email, recipient1.username);
+        dmsd.registerAdmin(user1.email, user1.username);
         assertTrue(dmsd.adminAddress() == alice);
     }
 }
@@ -220,20 +202,12 @@ contract subscribeAdminTest is BaseSetup {
         console.log("Test subscribe admin and check fields");
         vm.prank(testAdminAddress);
         dmsd.subscribeAdmin();
-        (
-            string memory userEmail,
-            string memory username,
-            bool isAdmin,
-            bool isRegistered,
-            bool withRecipients,
-            bool subscribed
-        ) = dmsd.getUser(testAdminAddress);
+        (string memory userEmail, string memory username, bool isAdmin, bool isRegistered, bool subscribed) =
+            dmsd.getUser(testAdminAddress);
         // check if the admin is registered
         assertTrue(isRegistered);
         // check if the admin is an admin
         assertTrue(isAdmin);
-        // check if the admin has no recipients
-        assertTrue(!withRecipients);
         // check if the admin is subscribed
         assertTrue(subscribed);
         // check if the admin has the correct email
@@ -263,55 +237,6 @@ contract subscribeAdminTest is BaseSetup {
     }
 }
 
-// a test contract that inherits from BaseSetup and which tests registerRecipient
-contract registerRecipientTest is BaseSetup {
-    DMSD dmsd = new DMSD();
-
-    bool recipientCreated;
-
-    function setUp() public virtual override {
-        BaseSetup.setUp();
-        dmsd.setToken(WMATIC);
-        vm.prank(testAdminAddress);
-        dmsd.registerAdmin(admin.email, admin.username);
-        vm.prank(testAdminAddress);
-        recipientCreated = dmsd.registerRecipient(alice, recipient1.email, recipient1.username);
-        console.log("Register recipent test");
-    }
-
-    // function that tests registerRecipient
-    function testRegisterRecipient() public {
-        console.log("Test register recipient");
-        // check if the recipient is created
-        assertTrue(recipientCreated);
-    }
-
-    // function that tests registerRecipient and cheks all fields are set correctly
-    function testRegisterRecipientAndCheckFields() public {
-        console.log("Test register recipient and check fields");
-        (
-            string memory userEmail,
-            string memory username,
-            bool isAdmin,
-            bool isRegistered,
-            bool withRecipients,
-            bool subscribed
-        ) = dmsd.getUser(alice);
-        // check if the admin is registered
-        assertTrue(isRegistered);
-        // check if the admin is an admin
-        assertTrue(!isAdmin);
-        // check if the admin has no recipients
-        assertTrue(!withRecipients);
-        // check if the admin is subscribed
-        assertTrue(!subscribed);
-        // check if the admin has the correct email
-        assertTrue(keccak256(abi.encodePacked(userEmail)) == keccak256(abi.encodePacked(recipient1.email)));
-        // check if the admin has the correct first name
-        assertTrue(keccak256(abi.encodePacked(username)) == keccak256(abi.encodePacked(recipient1.username)));
-    }
-}
-
 // a test contract that inherits from BaseSetup and which tests createPersonalMultisig
 contract createPersonalMultisigTest is BaseSetup {
     DMSD dmsd = new DMSD();
@@ -335,13 +260,6 @@ contract createPersonalMultisigTest is BaseSetup {
         dmsd.registerAdmin(admin.email, admin.username);
         vm.prank(testAdminAddress);
         dmsd.subscribeAdmin();
-        address[2] memory testPersonalMultisigOwners;
-        testPersonalMultisigOwners[0] = payable(adminRecoveryAddress1);
-        testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
-        console.log("Test create personal multisig");
-        vm.prank(testAdminAddress);
-        dmsd.createPersonalMultisig(testPersonalMultisigOwners);
-        deal(address(dmsd.dToken()), testAdminAddress, 100e18);
         console.log("Create personal multisig test");
     }
 
@@ -352,7 +270,7 @@ contract createPersonalMultisigTest is BaseSetup {
         testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
         console.log("Test create personal multisig");
         vm.prank(testAdminAddress);
-        assertTrue(dmsd.createPersonalMultisig(testPersonalMultisigOwners));
+        assertTrue(dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect));
     }
 
     // function that tests createPersonalMultisig with non admin account
@@ -363,7 +281,7 @@ contract createPersonalMultisigTest is BaseSetup {
         console.log("Test create personal multisig with non admin account");
         vm.startPrank(alice);
         vm.expectRevert(abi.encodePacked("DMSD: You're not the Admin."));
-        dmsd.createPersonalMultisig(testPersonalMultisigOwners);
+        dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect);
     }
 
     // function that tests getRecoveryAddress
@@ -373,9 +291,21 @@ contract createPersonalMultisigTest is BaseSetup {
         testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
         console.log("Test get recovery address");
         vm.prank(testAdminAddress);
-        assertTrue(dmsd.createPersonalMultisig(testPersonalMultisigOwners));
+        assertTrue(dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect));
         vm.prank(testAdminAddress);
         assertTrue(compareArrays(dmsd.getRecoveryWallets(), testPersonalMultisigOwners));
+    }
+
+    // function that tests getRecoveryAddress
+    function testGetAdminWalletToProtect() public {
+        address[2] memory testPersonalMultisigOwners;
+        testPersonalMultisigOwners[0] = payable(adminRecoveryAddress1);
+        testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
+        console.log("Test get wallet to protect address");
+        vm.prank(testAdminAddress);
+        assertTrue(dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect));
+        vm.prank(testAdminAddress);
+        assertTrue(dmsd.getWalletToProtect() == testAdminWalletToProtect);
     }
 
     // fucntion to test LogNewPersonalMultisig event after createRecipientsMultisig
@@ -388,77 +318,7 @@ contract createPersonalMultisigTest is BaseSetup {
         vm.prank(testAdminAddress);
         vm.expectEmit(true, false, false, true);
         emit LogNewPersonalMultisig(testPersonalMultisigOwners);
-        dmsd.createPersonalMultisig(testPersonalMultisigOwners);
-    }
-
-    // function that tests approveTransfer
-    function testApproveTransfer() public {
-        console.log("Test approve transfer");
-        vm.prank(testAdminAddress);
-        assertTrue(dmsd.dToken().approve(address(dmsd), testAdminAddress.balance));
-    }
-
-    // function that tests transferToMultisig
-    function testTransferToMultisig() public {
-        console.log("Test transfer to multisig");
-        vm.prank(testAdminAddress);
-        dmsd.dToken().approve(address(dmsd), testAdminAddress.balance);
-        vm.prank(testAdminAddress);
-        assertTrue(dmsd.transferToMultisig(10));
-    }
-}
-
-// a test contract that inherits from BaseSetup and which tests createrecipientsMultisig
-contract createRecipientsMultisigTest is BaseSetup {
-    DMSD dmsd = new DMSD();
-
-    function setUp() public virtual override {
-        BaseSetup.setUp();
-        dmsd.setToken(WMATIC);
-        vm.startPrank(testAdminAddress);
-        dmsd.registerAdmin(admin.email, admin.username);
-        dmsd.subscribeAdmin();
-        dmsd.registerRecipient(alice, recipient1.email, recipient1.username);
-        dmsd.registerRecipient(bob, recipient2.email, recipient2.username);
-        dmsd.registerRecipient(charlie, recipient3.email, recipient3.username);
-        dmsd.createRecipientsMultisig(recipientMultisigOwners, 2);
-        vm.stopPrank();
-        deal(address(dmsd.dToken()), testAdminAddress, 100e18);
-        console.log("Create recipients multisig test");
-    }
-
-    // function that tests createRecipientsMultisig
-    function testCreateRecipientsMultisig() public {
-        console.log("Test create recipients multisig");
-        vm.prank(testAdminAddress);
-        assertTrue(dmsd.createRecipientsMultisig(recipientMultisigOwners, 2));
-    }
-
-    // fucntion to test LogNewRecipientMultisig event after createRecipientsMultisig
-    function testLogNewRecipientMultisigEvent() public {
-        console.log("Test LogNewRecipientMultisig event");
-        console.log("Test create recipients multisig");
-        vm.prank(testAdminAddress);
-        vm.expectEmit(true, true, false, true);
-        emit LogNewRecipientMultisig(recipientMultisigOwners, 2);
-        dmsd.createRecipientsMultisig(recipientMultisigOwners, 2);
-    }
-
-    // function that tests approveTransfer
-    function testApproveTransfer() public {
-        console.log("Test approve transfer");
-        vm.startPrank(testAdminAddress);
-        assertTrue(dmsd.dToken().approve(address(dmsd), testAdminAddress.balance));
-        vm.stopPrank();
-    }
-
-    // function that tests transferToMultisig
-    function testTransferToMultisig() public {
-        console.log("Test transfer to multisig");
-        vm.startPrank(testAdminAddress);
-        dmsd.dToken().approve(address(dmsd), testAdminAddress.balance);
-        assertTrue(dmsd.transferToMultisig(10));
-        vm.stopPrank();
+        dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect);
     }
 }
 
@@ -471,9 +331,6 @@ contract getUserAtIndexTest is BaseSetup {
         dmsd.setToken(WMATIC);
         vm.prank(testAdminAddress);
         dmsd.registerAdmin(admin.email, admin.username);
-        vm.startPrank(testAdminAddress);
-        dmsd.registerRecipient(alice, recipient1.email, recipient1.username);
-        vm.stopPrank();
         console.log("User management tests");
     }
 
@@ -488,26 +345,18 @@ contract getUserAtIndexTest is BaseSetup {
     function testGetUser() public {
         console.log("Test get user");
         vm.prank(testAdminAddress);
-        (
-            string memory userEmail,
-            string memory username,
-            bool isAdmin,
-            bool isRegistered,
-            bool withRecipients,
-            bool subscribed
-        ) = dmsd.getUser(alice);
+        (string memory userEmail, string memory username, bool isAdmin, bool isRegistered, bool subscribed) =
+            dmsd.getUser(alice);
         // check if the admin is registered
         assertTrue(isRegistered);
         // check if the admin is an admin
         assertTrue(!isAdmin);
-        // check if the admin has no recipients
-        assertTrue(!withRecipients);
         // check if the admin is subscribed
         assertTrue(!subscribed);
         // check if the admin has the correct email
-        assertTrue(keccak256(abi.encodePacked(userEmail)) == keccak256(abi.encodePacked(recipient1.email)));
+        assertTrue(keccak256(abi.encodePacked(userEmail)) == keccak256(abi.encodePacked(user1.email)));
         // check if the admin has the correct first name
-        assertTrue(keccak256(abi.encodePacked(username)) == keccak256(abi.encodePacked(recipient1.username)));
+        assertTrue(keccak256(abi.encodePacked(username)) == keccak256(abi.encodePacked(user1.username)));
     }
 }
 
@@ -526,7 +375,7 @@ contract DMSDModifiersTest is BaseSetup {
         console.log("Test only admin");
         vm.startPrank(alice);
         vm.expectRevert(abi.encodePacked("DMSD: You're not the Admin."));
-        dmsd.registerRecipient(alice, recipient1.email, recipient1.username);
+        dmsd.getRecoveryWallets();
     }
 
     // function that tests onlySubscribed modifier
@@ -539,7 +388,7 @@ contract DMSDModifiersTest is BaseSetup {
         testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
         console.log("Test create personal multisig");
         vm.expectRevert(abi.encodePacked("DMSD: User not subscribed to the service."));
-        dmsd.createPersonalMultisig(testPersonalMultisigOwners);
+        dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect);
         vm.stopPrank();
     }
 
@@ -548,9 +397,8 @@ contract DMSDModifiersTest is BaseSetup {
         console.log("Test onlyRecipient");
         vm.startPrank(testAdminAddress);
         dmsd.registerAdmin(admin.email, admin.username);
-        dmsd.registerRecipient(alice, recipient1.email, recipient1.username);
         vm.expectRevert(abi.encodePacked("DMSD: You're already a registered user."));
-        dmsd.registerRecipient(alice, recipient1.email, recipient1.username);
+        dmsd.registerAdmin(admin.email, admin.username);
         vm.stopPrank();
     }
 

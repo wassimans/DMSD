@@ -1,4 +1,3 @@
-import { BigNumber } from "ethers";
 interface State {
   contractAddress: `0x${string}` | undefined;
   userAddress: `0x${string}` | undefined;
@@ -20,7 +19,8 @@ const actions = {
 };
 
 const initialState: State = {
-  contractAddress: "0xa154633aC81a12CA9B879008d6525E14E3Bb6184",
+  contractAddress: "0x3d1e1FEBC38eeC528fd69D19bbD8b46dA419E569",
+  // contractAddress: "0x7354f22a42120A8B83b0D3d2087eA1f81589380E",
   userAddress: undefined,
   currentUser: undefined,
   vaultApproved: false,
@@ -56,7 +56,6 @@ const reducer = (state: State, action: Action): State => {
           username: state.currentUser?.username || "",
           isRegistered: state.currentUser?.isRegistered || false,
           isAdmin: state.currentUser?.isAdmin || false,
-          withRecipients: state.currentUser?.withRecipients || false,
         },
       };
     }
@@ -72,6 +71,5 @@ export interface User {
   username: string | undefined;
   isRegistered: boolean | undefined;
   isAdmin: boolean | undefined;
-  withRecipients: boolean | undefined;
   subscribed: boolean | undefined;
 }

@@ -106,7 +106,7 @@ export default function Connect() {
           <Heading
             color={"gray.700"}
             lineHeight={1.1}
-            fontSize={{ base: "2xl", sm: "3xl", md: "4xl" }}
+            fontSize={{ base: "xl", sm: "2xl", md: "3xl" }}
           >
             Connectez votre wallet
           </Heading>

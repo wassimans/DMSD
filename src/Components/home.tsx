@@ -1,5 +1,9 @@
 import { User, useDmsdApp } from "@/contexts/DmsdContext";
-import { useDmsdGetRecoveryWallets, useDmsdGetUser } from "@/generated";
+import {
+  useDmsdGetRecoveryWallets,
+  useDmsdGetUser,
+  useDmsdGetWalletToProtect,
+} from "@/generated";
 import {
   TableContainer,
   Table,
@@ -32,7 +36,6 @@ export default function Home() {
           isAdmin: userData?.isAdmin,
           isRegistered: userData?.isRegistered,
           subscribed: userData?.subscribed,
-          withRecipients: userData?.withRecipients,
         };
         dispatch({ type: "ADD_USER", payload: currentUser });
       }
@@ -40,6 +43,11 @@ export default function Home() {
   }, [userData]);
 
   const { data: recoveryWallets } = useDmsdGetRecoveryWallets({
+    address: contractAddress,
+    overrides: { from: address! },
+  });
+
+  const { data: walletToProtect } = useDmsdGetWalletToProtect({
     address: contractAddress,
     overrides: { from: address! },
   });
@@ -65,7 +73,17 @@ export default function Home() {
               <Th>{currentUser?.email}</Th>
             </Tr>
             <Tr>
-              <Th fontSize={"l"}>Vos wallets protégés</Th>
+              <Th fontSize={"l"}>Votre wallet à protéger</Th>
+
+              <Th>
+                {walletToProtect !==
+                ("0x0000000000000000000000000000000000000000" as `0x${string}`)
+                  ? walletToProtect
+                  : "N/A"}
+              </Th>
+            </Tr>
+            <Tr>
+              <Th fontSize={"l"}>Vos wallets de récupération</Th>
 
               <Th>
                 {recoveryWallets?.[0] !==

@@ -16,7 +16,8 @@ const { chains, provider, webSocketProvider } = configureChains(
      * Uncomment this line to use Alchemy as your provider
      * @see https://wagmi.sh/react/providers/alchemy
      */
-    alchemyProvider({ apiKey: process.env.ALCHEMY_API_KEY! }),
+    // alchemyProvider({ apiKey: process.env.ALCHEMY_API_KEY! }),
+
     /**
      * Tells wagmi to use the default RPC URL for each chain
      * for some dapps the higher rate limits of Alchemy may be required
@@ -26,7 +27,9 @@ const { chains, provider, webSocketProvider } = configureChains(
         if (chain.id === foundry.id) {
           return { http: "http://localhost:8545" };
         }
-        return { http: chain.rpcUrls.default.http[0] };
+        return {
+          http: "https://rpc.ankr.com/polygon_mumbai/bc1e67b1440494d0c4b3ce8a37811292d01f3b3f069dfb86f438aaceabd62431",
+        };
       },
     }),
   ],

@@ -1,57 +1,63 @@
 import { useDmsdApp } from "@/contexts/DmsdContext";
 import {
-  useDmsdTransferToMultisig,
-  usePrepareDmsdTransferToMultisig,
-} from "@/generated";
-import {
   Button,
   Container,
+  Divider,
   Heading,
   SimpleGrid,
   Stack,
+  Text,
   Wrap,
   WrapItem,
 } from "@chakra-ui/react";
 import { BigNumber } from "ethers";
-import { useWaitForTransaction } from "wagmi";
+import { useAccount, useWaitForTransaction } from "wagmi";
 import Multisig from "./multisig";
+import {
+  useDmsdGetApprovals,
+  useDmsdValidateApproval,
+  usePrepareDmsdValidateApproval,
+} from "@/generated";
+import { useState } from "react";
 
 export default function Vault() {
   const {
-    state: { contractAddress, userAddress, currentUser, vaultApproved },
+    state: { contractAddress, currentUser },
     dispatch,
   } = useDmsdApp();
 
+  const { address: userAddress } = useAccount();
+
+  console.log("userAddress", userAddress);
+
   const amount: BigNumber = BigNumber.from("1");
 
-  const { config } = usePrepareDmsdTransferToMultisig({
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+
+  const { data: vaultApproved } = useDmsdGetApprovals({
     address: contractAddress,
-    overrides: {
-      from: userAddress,
-      gasLimit: BigNumber.from("10000000"),
-    },
-    // overrides: {
-    //   from: userAddress,
-    // },
-    chainId: 80001,
-    args: [amount],
+    overrides: { from: userAddress },
   });
 
-  const { data, write } = useDmsdTransferToMultisig({
-    ...config,
+  const { config } = usePrepareDmsdValidateApproval({
+    address: contractAddress,
+    overrides: { from: userAddress },
   });
+
+  const { write, data } = useDmsdValidateApproval(config);
 
   const handleApproveVault = (e: any) => {
     e.preventDefault();
     write?.();
   };
 
+  console.log("approvedVault", vaultApproved);
+
   useWaitForTransaction({
     hash: data?.hash,
     onSuccess: () => {
-      console.log("vault approved");
-      dispatch({ type: "APPROVE_VAULT", payload: true });
-      console.log("approvedVault", vaultApproved);
+      setShowSuccessMessage(true);
+      // dispatch({ type: "APPROVE_VAULT", payload: true });
     },
   });
 
@@ -144,6 +150,20 @@ export default function Vault() {
                   </Button>
                 </WrapItem>
               </Wrap>
+              {showSuccessMessage && (
+                <>
+                  <Divider />
+                  <Text fontSize={20} textAlign={"center"}>
+                    Vault validé ! Vous pouvez maintenant Approve DMSD pour la
+                    gestion de vos avoirs.
+                  </Text>
+                  <br />
+                  <Text fontSize={20} textAlign={"center"}>
+                    Connectez-vous avec votre wallet à protéger pour pouvoir
+                    Approve.
+                  </Text>
+                </>
+              )}
             </Stack>
           </Stack>
         </Container>

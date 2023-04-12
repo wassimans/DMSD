@@ -41,7 +41,6 @@ export default function Subscription() {
     address: contractAddress,
     // overrides: { from: userAddress, gasLimit: BigNumber.from("1000000") },
     overrides: { from: userAddress },
-    chainId: 80001,
   });
 
   const { data, write } = useDmsdSubscribeAdmin({

@@ -28,9 +28,11 @@ export default function Subscribe() {
     state: { contractAddress, userAddress, currentUser },
   } = useDmsdApp();
 
+  const [walletToProtect, setWalletToProtect] = useState("0x" as `0x${string}`);
   const [recoveryWallet1, setRecoveryWallet1] = useState("0x" as `0x${string}`);
   const [recoveryWallet2, setRecoveryWallet2] = useState("0x" as `0x${string}`);
 
+  const debouncedWalletToProtect = useDebounce(walletToProtect, 500);
   const debouncedRecoveryWallet1 = useDebounce(recoveryWallet1, 500);
   const debouncedRecoveryWallet2 = useDebounce(recoveryWallet2, 500);
 
@@ -38,6 +40,11 @@ export default function Subscribe() {
     debouncedRecoveryWallet1,
     debouncedRecoveryWallet2,
   ];
+
+  const handleWalletToProtect = (e: any) => {
+    e.preventDefault();
+    setWalletToProtect(e.target.value);
+  };
 
   const handleRecoveryWallet1 = (e: any) => {
     e.preventDefault();
@@ -51,9 +58,7 @@ export default function Subscribe() {
 
   const { config } = usePrepareDmsdCreatePersonalMultisig({
     address: contractAddress,
-    args: [recoveryWallets],
-    overrides: { from: userAddress },
-    chainId: 80001,
+    args: [recoveryWallets, debouncedWalletToProtect],
   });
 
   const { data, write } = useDmsdCreatePersonalMultisig({
@@ -61,6 +66,7 @@ export default function Subscribe() {
   });
 
   const reInitFields = () => {
+    setWalletToProtect("0x" as `0x${string}`);
     setRecoveryWallet1("0x" as `0x${string}`);
     setRecoveryWallet2("0x" as `0x${string}`);
   };
@@ -86,17 +92,20 @@ export default function Subscribe() {
         spacing={{ base: 8 }}
         minW={{ lg: "lg" }}
       >
-        <Stack spacing={4}>
-          <Heading
-            color={"gray.700"}
-            lineHeight={1}
-            fontSize={{ base: "l", sm: "xl", md: "2xl" }}
-          >
-            Votre wallet à protéger sera celle avec laquelle vous vous connectez
-          </Heading>
-        </Stack>
         <Box as={"form"} mt={10} w="100%">
           <Stack spacing={4}>
+            <Text fontSize={20}>Wallet à protéger : </Text>
+            <Input
+              placeholder="Votre pseudo"
+              bg={"gray.20"}
+              border={0}
+              color={"gray.500"}
+              _placeholder={{
+                color: "gray.500",
+              }}
+              value={walletToProtect}
+              onChange={(e) => handleWalletToProtect(e)}
+            />
             <Divider />
             <Text fontSize={20}>Wallets de récupération : </Text>
             <Input

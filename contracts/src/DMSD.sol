@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "./MultiSigWallet.sol";
 
 contract DMSD {
@@ -10,20 +10,24 @@ contract DMSD {
         string username;
         bool isRegistered;
         bool isAdmin;
-        bool withRecipients;
         bool subscribed;
         uint256 index;
     }
 
+    // WMATIC contract address on MUMBAI testnet
+    address WMATIC_ADDRESS = 0x9c3C9283D3e44854697Cd22D3Faa240Cfb032889;
+
     MultiSigWallet public personalMultiSig; // Instance of the personal multisig wallet
-    MultiSigWallet public recipientMultiSig; // Instance of of the recipients multisig wallet
-    ERC20 public dToken; // Instance of the token contract
+    IERC20 public wmatic; // Instance of the token contract
 
     address[] public userIndex; // Array of all user addresses
     mapping(address => User) public users; // Mapping of user addresses to user structs
-    mapping(address => address[]) private _userRecipients; // Mapping of user addresses to recipient addresses
     address public adminAddress; // Address of the admin
-    address[2] public recoveryWallets; // Array of addresses of the recovery wallets
+    mapping(address => address) public walletToProtect; // Mapping of admin to wallet to protect
+    mapping(address => bool) public isWAlletToProtect; // Boolean indicating whether the address is a wallet to protect
+    mapping(address => address[2]) public recoveryWallets; // Array of addresses of the recovery wallets
+    mapping(address => mapping(address => bool)) public approvals; // Mapping wallet to protect to DMSD to approval status
+    mapping(address => mapping(address => bool)) public transfers; // Mapping wallet to protect to multisig to transfer status
 
     // We index the userAddresses so clients can quickly filter,
     // sort and find relevant information in the event logs
@@ -31,8 +35,9 @@ contract DMSD {
     event LogNewSubscription(address indexed userAddress);
     event LogDeleteUser(address indexed userAddress, uint256 index, string email);
     event LogNewPersonalMultisig(address[2] indexed recoveryWallets);
-    event LogNewRecipientMultisig(address[] indexed owners, uint256 indexed numConfirmationsRequired);
-    event Transfer(address indexed from, address indexed to, uint256 value);
+    event LogNewTransfer(address indexed from, address indexed to, uint256 amount);
+    event LogNewApproval(address indexed from, address indexed to, uint256 amount);
+    event Deposit(address indexed sender, uint256 amount, uint256 balance);
 
     //////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////// Modifiers ///////////////////////////////////////
@@ -67,6 +72,21 @@ contract DMSD {
         _;
     }
 
+    modifier onlyWalletToProtect(address _userAddress) {
+        require(isWAlletToProtect[_userAddress], "DMSD: This is not a wallet to protect.");
+        _;
+    }
+
+    modifier notApproved(address _userAddress) {
+        require(!approvals[_userAddress][address(this)], "DMSD: Approval already validated.");
+        _;
+    }
+
+    constructor() {
+        // Instantiate the WMATIC contract
+        wmatic = IERC20(WMATIC_ADDRESS);
+    }
+
     //////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////// Business logic //////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
@@ -89,13 +109,15 @@ contract DMSD {
      * @return A boolean indicating whether the personal multisig wallet was successfully created.
      *  @dev The event LogNewPersonalMultisig will be emitted upon successful deployment of the new multisignature wallet contract.
      */
-    function createPersonalMultisig(address[2] memory _recovAddrs)
+    function createPersonalMultisig(address[2] memory _recovAddrs, address _walletToProtect)
         external
         onlyAdmin
         onlySubscribed(msg.sender)
         returns (bool)
     {
         _setRecoveryWallets(_recovAddrs);
+        _setWalletToProtect(_walletToProtect);
+        _setIsWalletToProtect(_walletToProtect);
         address[] memory owners = new address[](3);
         owners[0] = _recovAddrs[0];
         owners[1] = _recovAddrs[1];
@@ -106,35 +128,34 @@ contract DMSD {
     }
 
     /**
-     * @notice Creates a new multisignature wallet contract for recipients.
-     * @param _owners Array of addresses representing the owners of the new wallet.
-     * @param _numConfirmationsRequired Number of confirmations required to execute a transaction from the new wallet.
-     * @return A boolean indicating whether the operation was successful.
-     * @dev The new multisignature wallet contract will be deployed using the provided array of owner addresses and confirmation requirements.
-     * @dev The event LogNewRecipientMultisig will be emitted upon successful deployment of the new multisignature wallet contract.
+     * @dev Validates the approval of the current subscriber to protect the wallet.
+     * Only an admin who is a subscribed user can call this function.
+     * Sets the approvals of the wallet to false.
+     *
+     * Requirements:
+     * - The caller must be an admin user who is already subscribed.
+     *
+     * @return bool Returns true if the approval is successfully validated and the approvals of the wallet is set to false.
      */
-    function createRecipientsMultisig(address[] memory _owners, uint256 _numConfirmationsRequired)
-        external
-        onlyAdmin
-        onlySubscribed(msg.sender)
-        returns (bool)
-    {
-        recipientMultiSig = new MultiSigWallet(_owners, _numConfirmationsRequired);
-        emit LogNewRecipientMultisig(_owners, _numConfirmationsRequired);
+
+    function validateApproval() external onlyAdmin onlySubscribed(msg.sender) returns (bool) {
+        _setApprovals(walletToProtect[msg.sender], false);
+        _setTransfers(walletToProtect[msg.sender], false);
         return true;
     }
 
     /**
-     * @notice Transfers tokens from the contract to the multisig wallet for safekeeping.
-     * @dev This function can only be called by the admin address. It calls the internal function
-     * _transferFromToMultisig to transfer tokens from the contract to the multisig wallet.
-     * @param _amount The amount of tokens to transfer.
-     * @return A boolean indicating whether the transfer was successful.
+     * @dev Approves the transfer of tokens from the wallet to protect to the smart contract,
+     * and sets the approval status to true. Only the wallet to protect can call this function.
+     * @return A boolean indicating whether the transfer was approved and the approval status was set.
+     * Emits an Approval event with the wallet to protect, the smart contract, and the balance approved.
+     * Emits an ApprovalStatusChanged event with the wallet to protect and the new approval status.
+     * Reverts if the approval failed.
      */
-    function transferToMultisig(uint256 _amount) external onlyAdmin onlySubscribed(msg.sender) returns (bool) {
-        // Transfer tokens from EOA to multi-sig wallet
-        require(dToken.approve(address(this), msg.sender.balance), "DMSD: approve failed");
-        return _transferFromToMultisig(_amount);
+    function approveTransfer() external onlyWalletToProtect(msg.sender) returns (bool) {
+        require(wmatic.approve(address(this), msg.sender.balance), "DMSD: approve failed");
+        _setApprovals(msg.sender, true);
+        return true;
     }
 
     /**
@@ -145,30 +166,19 @@ contract DMSD {
      * @return A boolean indicating whether the transfer was successful.
      * @dev Throws an error if the token transfer fails.
      */
-    function _transferFromToMultisig(uint256 _amount) private returns (bool) {
-        // Transfer tokens from EOA to multi-sig wallet
-        if (_userRecipients[adminAddress].length > 0) {
-            require(
-                dToken.transferFrom(adminAddress, address(recipientMultiSig), _amount),
-                "DMSD: transfer to recipient multisig failed"
-            );
-        } else {
-            require(
-                dToken.transferFrom(adminAddress, address(personalMultiSig), _amount),
-                "DMSD: transfer to personal multisig failed"
-            );
-        }
+    function transferFromToMultisig(uint256 _amount) external returns (bool) {
+        // Transfer tokens from EOA to multiSig wallet
+        require(
+            wmatic.transferFrom(walletToProtect[msg.sender], address(personalMultiSig), _amount),
+            "DMSD: transfer to personal multisig failed"
+        );
+        _setTransfers(msg.sender, true);
         return true;
     }
 
     //////////////////////////////////////////////////////////////////////////////////////
     ///////////////////////////////// User operations ////////////////////////////////////
     //////////////////////////////////////////////////////////////////////////////////////
-
-    // This contract exposes a pseudo-CRUD interface for managing DMSD's users
-    // gas consumption is expected to remain approximately consistent at
-    // any scale because each write operation proceeds in a step-by-step
-    // fashion with no branching or loops.
 
     /**
      * @dev Registers an admin with the given email, first name, and last name.
@@ -187,38 +197,10 @@ contract DMSD {
         users[msg.sender].username = _username;
         users[msg.sender].isRegistered = true;
         users[msg.sender].isAdmin = true;
-        users[msg.sender].withRecipients = false;
         users[msg.sender].subscribed = false;
         userIndex.push(msg.sender);
         users[msg.sender].index = userIndex.length;
         emit LogNewUser(msg.sender, userIndex.length, _userEmail);
-        return true;
-    }
-
-    /**
-     * @notice Registers a new recipient on the platform by an admin user.
-     * @dev The function can only be called by an admin user and can only register an unregistered user.
-     * @param _userAddress The address of the user to be registered as a recipient.
-     * @param _userEmail The email address of the user to be registered.
-     * @param _username The username of the user to be registered.
-     * @return A boolean indicating whether the registration was successful or not.
-     */
-    function registerRecipient(address _userAddress, string calldata _userEmail, string calldata _username)
-        external
-        onlyAdmin
-        onlyUnregistered(_userAddress)
-        returns (bool)
-    {
-        users[_userAddress].email = _userEmail;
-        users[_userAddress].username = _username;
-        users[_userAddress].isRegistered = true;
-        users[_userAddress].isAdmin = false;
-        users[msg.sender].withRecipients = false;
-        users[_userAddress].subscribed = false;
-        userIndex.push(_userAddress);
-        users[_userAddress].index = userIndex.length;
-        _userRecipients[msg.sender].push(_userAddress);
-        emit LogNewUser(_userAddress, userIndex.length, _userEmail);
         return true;
     }
 
@@ -246,21 +228,13 @@ contract DMSD {
         view
         usersNotEmpty
         isUser(_userAddress)
-        returns (
-            string memory userEmail,
-            string memory username,
-            bool isAdmin,
-            bool isRegistered,
-            bool withRecipients,
-            bool subscribed
-        )
+        returns (string memory userEmail, string memory username, bool isAdmin, bool isRegistered, bool subscribed)
     {
         return (
             users[_userAddress].email,
             users[_userAddress].username,
             users[_userAddress].isAdmin,
             users[_userAddress].isRegistered,
-            users[_userAddress].withRecipients,
             users[_userAddress].subscribed
         );
     }
@@ -274,15 +248,64 @@ contract DMSD {
     }
 
     function getRecoveryWallets() external view onlyAdmin returns (address[2] memory) {
-        return recoveryWallets;
+        require(recoveryWallets[msg.sender].length > 0, "DMSD: recovery wallets not set");
+        return recoveryWallets[msg.sender];
     }
 
     function _setRecoveryWallets(address[2] memory _recAddrs) private {
         require(_recAddrs[0] != address(0) && _recAddrs[1] != address(0), "DMSD: setting recovery wallets to 0");
-        recoveryWallets = _recAddrs;
+        recoveryWallets[msg.sender] = _recAddrs;
     }
 
-    function setToken(address _dToken) public {
-        dToken = ERC20(_dToken);
+    function setToken(address _wmatic) public {
+        wmatic = IERC20(_wmatic);
+    }
+
+    function _setWalletToProtect(address _walletToProtect) private {
+        walletToProtect[msg.sender] = _walletToProtect;
+    }
+
+    function getWalletToProtect() external view returns (address) {
+        return walletToProtect[msg.sender];
+    }
+
+    function getApprovals() external view returns (bool) {
+        return approvals[walletToProtect[msg.sender]][address(this)];
+    }
+
+    function getApprovalsFromWalletToProtect() external view returns (bool) {
+        return approvals[msg.sender][address(this)];
+    }
+
+    function _setApprovals(address _sender, bool _approval) private {
+        approvals[_sender][address(this)] = _approval;
+    }
+
+    function getTransfers() external view returns (bool) {
+        return approvals[msg.sender][address(personalMultiSig)];
+    }
+
+    function _setTransfers(address _sender, bool _approval) private {
+        approvals[_sender][address(personalMultiSig)] = _approval;
+    }
+
+    function getIsWalletToProtect(address _walletToProtect) external view returns (bool) {
+        return isWAlletToProtect[_walletToProtect];
+    }
+
+    function _setIsWalletToProtect(address _walletToProtect) private {
+        isWAlletToProtect[_walletToProtect] = true;
+    }
+
+    function getPersonalMultiSig() external view returns (address) {
+        return address(personalMultiSig);
+    }
+
+    function getPersonalMultiSigBalance() external view returns (uint256) {
+        return address(personalMultiSig).balance;
+    }
+
+    receive() external payable {
+        emit Deposit(msg.sender, msg.value, address(this).balance);
     }
 }
