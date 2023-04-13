@@ -60,9 +60,8 @@ export default function Multisig() {
 
   const { config } = usePrepareDmsdTransferFromToMultisig({
     address: contractAddress,
-    overrides: { gasLimit: BigNumber.from(1000000) },
-    args: [BigNumber.from(1000000000000)],
-    signer: contractAddress,
+    overrides: { gasLimit: BigNumber.from(1000000), from: userAddress! },
+    args: [BigNumber.from(1)],
   });
 
   console.log("balanceMultiSig", balanceMultiSig);
@@ -78,7 +77,7 @@ export default function Multisig() {
     hash: data?.hash,
     onSuccess: () => {
       console.log("success");
-      refetch();
+      // refetch();
     },
   });
 

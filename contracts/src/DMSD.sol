@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
+
 import "./MultiSigWallet.sol";
 
-contract DMSD {
+contract DMSD is ReentrancyGuard {
     struct User {
         string email;
         string username;
@@ -18,7 +20,7 @@ contract DMSD {
     address WMATIC_ADDRESS = 0x9c3C9283D3e44854697Cd22D3Faa240Cfb032889;
 
     MultiSigWallet public personalMultiSig; // Instance of the personal multisig wallet
-    IERC20 public wmatic; // Instance of the token contract
+    ERC20 public wmatic; // Instance of the token contract
 
     address[] public userIndex; // Array of all user addresses
     mapping(address => User) public users; // Mapping of user addresses to user structs
@@ -35,7 +37,6 @@ contract DMSD {
     event LogNewSubscription(address indexed userAddress);
     event LogDeleteUser(address indexed userAddress, uint256 index, string email);
     event LogNewPersonalMultisig(address[2] indexed recoveryWallets);
-    event LogNewTransfer(address indexed from, address indexed to, uint256 amount);
     event LogNewApproval(address indexed from, address indexed to, uint256 amount);
     event Deposit(address indexed sender, uint256 amount, uint256 balance);
 
@@ -77,14 +78,9 @@ contract DMSD {
         _;
     }
 
-    modifier notApproved(address _userAddress) {
-        require(!approvals[_userAddress][address(this)], "DMSD: Approval already validated.");
-        _;
-    }
-
     constructor() {
         // Instantiate the WMATIC contract
-        wmatic = IERC20(WMATIC_ADDRESS);
+        wmatic = ERC20(WMATIC_ADDRESS);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////
@@ -155,6 +151,7 @@ contract DMSD {
     function approveTransfer() external onlyWalletToProtect(msg.sender) returns (bool) {
         require(wmatic.approve(address(this), msg.sender.balance), "DMSD: approve failed");
         _setApprovals(msg.sender, true);
+        emit LogNewApproval(msg.sender, address(personalMultiSig), msg.sender.balance);
         return true;
     }
 
@@ -166,13 +163,17 @@ contract DMSD {
      * @return A boolean indicating whether the transfer was successful.
      * @dev Throws an error if the token transfer fails.
      */
-    function transferFromToMultisig(uint256 _amount) external returns (bool) {
-        // Transfer tokens from EOA to multiSig wallet
+    function transferFromToMultisig(uint256 _amount) external onlyAdmin returns (bool) {
         require(
-            wmatic.transferFrom(walletToProtect[msg.sender], address(personalMultiSig), _amount),
+            transfer(walletToProtect[msg.sender], address(personalMultiSig), _amount),
             "DMSD: transfer to personal multisig failed"
         );
         _setTransfers(msg.sender, true);
+        return true;
+    }
+
+    function transfer(address _from, address _to, uint256 _amount) internal nonReentrant returns (bool) {
+        require(wmatic.transferFrom(_from, _to, _amount), "DMSD: transfer to personal multisig failed");
         return true;
     }
 
@@ -250,7 +251,7 @@ contract DMSD {
     }
 
     function setToken(address _wmatic) public {
-        wmatic = IERC20(_wmatic);
+        wmatic = ERC20(_wmatic);
     }
 
     function _setWalletToProtect(address _walletToProtect) private {

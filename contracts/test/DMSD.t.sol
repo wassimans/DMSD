@@ -18,11 +18,12 @@ abstract contract BaseSetup is Test {
     }
 
     event LogNewUser(address indexed userAddress, uint256 index, string email);
-    event LogDeleteUser(address indexed userAddress, uint256 index, string email);
     event LogNewSubscription(address indexed userAddress);
+    event LogDeleteUser(address indexed userAddress, uint256 index, string email);
     event LogNewPersonalMultisig(address[2] indexed recoveryWallets);
-    event LogNewRecipientMultisig(address[] indexed owners, uint256 indexed numConfirmationsRequired);
-    event Transfer(address indexed from, address indexed to, uint256 value);
+    event LogNewTransfer(address indexed from, address indexed to, uint256 amount);
+    event LogNewApproval(address indexed from, address indexed to, uint256 amount);
+    event Deposit(address indexed sender, uint256 amount, uint256 balance);
 
     // WMATIC token address in GOERLI testnet
     address public constant WMATIC = 0x9c3C9283D3e44854697Cd22D3Faa240Cfb032889;
@@ -123,6 +124,24 @@ contract whenContractIsCreatedTest is BaseSetup {
         // check if the contract is deployed
         assertTrue(address(this) != address(0));
         // check if the contract is deployed with the correct MATIC token address
+        assertTrue(address(dmsd.wmatic()) == WMATIC);
+    }
+}
+
+// a test contract that inherits from BaseSetup and which tests setToken
+contract setTokenTest is BaseSetup {
+    DMSD dmsd = new DMSD();
+
+    function setUp() public virtual override {
+        BaseSetup.setUp();
+        dmsd.setToken(WMATIC);
+        console.log("Set token test");
+    }
+
+    // function that tests setToken
+    function testSetToken() public {
+        console.log("Test set token");
+        // check if the token is set
         assertTrue(address(dmsd.wmatic()) == WMATIC);
     }
 }
@@ -235,6 +254,19 @@ contract subscribeAdminTest is BaseSetup {
         emit LogNewSubscription(testAdminAddress);
         dmsd.subscribeAdmin();
     }
+
+    // function to test onlySubscribed modifier
+    function testSubscribeAdminAndCheckOnlySubscribedModifier() public {
+        console.log("Test subscribe admin and check only subscribed modifier");
+        vm.startPrank(testAdminAddress);
+        address[2] memory testPersonalMultisigOwners;
+        testPersonalMultisigOwners[0] = payable(adminRecoveryAddress1);
+        testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
+        // check if the onlySubscribed modifier works
+        vm.expectRevert(abi.encodePacked("DMSD: User not subscribed to the service."));
+        dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect);
+        vm.stopPrank();
+    }
 }
 
 // a test contract that inherits from BaseSetup and which tests createPersonalMultisig
@@ -319,6 +351,183 @@ contract createPersonalMultisigTest is BaseSetup {
         vm.expectEmit(true, false, false, true);
         emit LogNewPersonalMultisig(testPersonalMultisigOwners);
         dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect);
+    }
+
+    // function to test _setRecoveryWallets
+    function testSetRecoveryWallets() public {
+        address[2] memory testPersonalMultisigOwners;
+        testPersonalMultisigOwners[0] = payable(adminRecoveryAddress1);
+        testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
+        console.log("Test set recovery wallets");
+        vm.prank(testAdminAddress);
+        assertTrue(dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect));
+        vm.prank(testAdminAddress);
+        assertTrue(compareArrays(dmsd.getRecoveryWallets(), testPersonalMultisigOwners));
+    }
+
+    // function to test _setWalletToProtect
+    function testSetWalletToProtect() public {
+        address[2] memory testPersonalMultisigOwners;
+        testPersonalMultisigOwners[0] = payable(adminRecoveryAddress1);
+        testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
+        console.log("Test set wallet to protect");
+        vm.prank(testAdminAddress);
+        assertTrue(dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect));
+        vm.prank(testAdminAddress);
+        assertTrue(dmsd.getWalletToProtect() == testAdminWalletToProtect);
+    }
+
+    // function to test _setIsWalletToProtect
+    function testSetIsWalletToProtect() public {
+        address[2] memory testPersonalMultisigOwners;
+        testPersonalMultisigOwners[0] = payable(adminRecoveryAddress1);
+        testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
+        console.log("Test set is wallet to protect");
+        vm.prank(testAdminAddress);
+        assertTrue(dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect));
+        vm.prank(testAdminAddress);
+        assertTrue(dmsd.getIsWalletToProtect(testAdminWalletToProtect));
+    }
+
+    // function to test getIsWalletToProtect
+    function testGetIsWalletToProtect() public {
+        address[2] memory testPersonalMultisigOwners;
+        testPersonalMultisigOwners[0] = payable(adminRecoveryAddress1);
+        testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
+        console.log("Test get is wallet to protect");
+        vm.prank(testAdminAddress);
+        assertTrue(dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect));
+        vm.prank(testAdminAddress);
+        assertTrue(dmsd.getIsWalletToProtect(testAdminWalletToProtect));
+    }
+
+    // function to test getPersonalMultiSigBalance
+    function testGetPersonalMultiSigBalance() public {
+        address[2] memory testPersonalMultisigOwners;
+        testPersonalMultisigOwners[0] = payable(adminRecoveryAddress1);
+        testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
+        console.log("Test get personal multisig balance");
+        vm.prank(testAdminAddress);
+        assertTrue(dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect));
+        vm.prank(testAdminAddress);
+        assertTrue(dmsd.getPersonalMultiSigBalance() == 0);
+    }
+}
+
+// a test contract that inherits from BaseSetup and which tests dmsd.approveTransfer
+contract ApproveTransferTest is BaseSetup {
+    DMSD dmsd = new DMSD();
+
+    function setUp() public virtual override {
+        BaseSetup.setUp();
+        dmsd.setToken(WMATIC);
+        vm.prank(testAdminAddress);
+        dmsd.registerAdmin(admin.email, admin.username);
+        vm.prank(testAdminAddress);
+        dmsd.subscribeAdmin();
+        address[2] memory testPersonalMultisigOwners;
+        testPersonalMultisigOwners[0] = payable(adminRecoveryAddress1);
+        testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
+        vm.prank(testAdminAddress);
+        dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect);
+        console.log("Transfer from to multisig test");
+    }
+
+    // function that tests approveTransfer
+    function testApproveTransfer() public {
+        console.log("Test transfer from to multisig");
+        deal(address(WMATIC), testAdminWalletToProtect, 10000e18);
+        vm.prank(testAdminWalletToProtect);
+        assertTrue(IERC20(WMATIC).approve(address(dmsd), 100e18));
+    }
+
+    // function that tests approveTransfer with non onlyWalletToProtect
+    function testApproveTransferWithRevert() public {
+        console.log("Test transfer from to multisig with non onlyWalletToProtect");
+        deal(address(WMATIC), testAdminWalletToProtect, 10000e18);
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodePacked("DMSD: This is not a wallet to protect."));
+        dmsd.approveTransfer();
+    }
+
+    // fucntion to test LogTransferApproved event after approveTransfer
+    function testLogTransferApprovedEvent() public {
+        console.log("Test LogTransferApproved event");
+        deal(address(WMATIC), testAdminWalletToProtect, 10000e18);
+        vm.prank(testAdminWalletToProtect);
+        vm.expectEmit(true, false, false, true);
+        emit LogNewApproval(testAdminWalletToProtect, address(dmsd), 100e18);
+        dmsd.approveTransfer();
+    }
+
+    // fucntion to test getApprovals
+    function testGetApprovals() public {
+        console.log("Test get approvals");
+        deal(address(WMATIC), testAdminWalletToProtect, 10000e18);
+        vm.prank(testAdminWalletToProtect);
+        dmsd.approveTransfer();
+        vm.prank(testAdminAddress);
+        assertTrue(dmsd.getApprovals());
+    }
+
+    // fucntion to test getApprovalsFromWalletToProtect
+    function testGetApprovalsFromWalletToProtect() public {
+        console.log("Test get approvals from wallet to protect");
+        deal(address(WMATIC), testAdminWalletToProtect, 10000e18);
+        vm.prank(testAdminWalletToProtect);
+        dmsd.approveTransfer();
+        vm.prank(testAdminWalletToProtect);
+        assertTrue(dmsd.getApprovalsFromWalletToProtect());
+    }
+}
+
+// a test contract that inherits from BaseSetup and which tests dmsd.transferFromToMultisig
+contract TransferFromToMultisigTest is BaseSetup {
+    DMSD dmsd = new DMSD();
+
+    function setUp() public virtual override {
+        BaseSetup.setUp();
+        dmsd.setToken(WMATIC);
+        vm.prank(testAdminAddress);
+        dmsd.registerAdmin(admin.email, admin.username);
+        vm.prank(testAdminAddress);
+        dmsd.subscribeAdmin();
+        address[2] memory testPersonalMultisigOwners;
+        testPersonalMultisigOwners[0] = payable(adminRecoveryAddress1);
+        testPersonalMultisigOwners[1] = payable(adminRecoveryAddress2);
+        vm.prank(testAdminAddress);
+        dmsd.createPersonalMultisig(testPersonalMultisigOwners, testAdminWalletToProtect);
+        console.log("Transfer from to multisig test");
+    }
+
+    // function that tests transferFromToMultisig
+    function testTransferFromToMultisig() public {
+        console.log("Test transfer from to multisig");
+        vm.prank(testAdminWalletToProtect);
+        IERC20(WMATIC).approve(address(dmsd), 10000e18);
+        deal(address(WMATIC), testAdminWalletToProtect, 10000e18);
+        vm.prank(testAdminAddress);
+        assertTrue(dmsd.transferFromToMultisig(1000000000000000000));
+    }
+
+    // function that tests transferFromToMultisig with non admin account
+    function testTransferFromToMultisigWithRevert() public {
+        console.log("Test transfer from to multisig with non admin account");
+        vm.startPrank(alice);
+        vm.expectRevert(abi.encodePacked("DMSD: You're not the Admin."));
+        dmsd.transferFromToMultisig(1000000000000000000);
+    }
+
+    // function to test getTransfers
+    function testGetTransfers() public {
+        console.log("Test get transfers");
+        vm.prank(testAdminWalletToProtect);
+        IERC20(WMATIC).approve(address(dmsd), 10000e18);
+        deal(address(WMATIC), testAdminWalletToProtect, 10000e18);
+        vm.prank(testAdminAddress);
+        dmsd.transferFromToMultisig(1000000000000000000);
+        vm.prank(testAdminAddress);
+        assertTrue(dmsd.getTransfers());
     }
 }
 
