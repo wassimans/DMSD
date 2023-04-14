@@ -15,7 +15,7 @@ contract DMSDScript is Script {
         vm.startBroadcast();
         // Create a new DMSD contract
         DMSD dmsd = new DMSD();
-        // Set the dToken address to WMATIC on Goerli testnet
+        // Set the dToken address to WMATIC on Mumbai testnet
         dmsd.setToken(WMATIC);
 
         vm.stopBroadcast();
